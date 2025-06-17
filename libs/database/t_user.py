@@ -40,98 +40,116 @@ from .redis import UserCache
 from .dos import UserStorage
 
 
-class UsrTask(DbTask):
-
-    MEM_CACHE_EXPIRES = 300  # seconds
-    MEM_CACHE_REFRESH = 32   # seconds
+# noinspection PyAbstractClass
+class BaseTask(DbTask):
 
     def __init__(self, user: ID,
-                 cache_pool: CachePool, redis: UserCache, storage: UserStorage,
-                 mutex_lock: threading.Lock):
-        super().__init__(cache_pool=cache_pool,
-                         cache_expires=self.MEM_CACHE_EXPIRES,
-                         cache_refresh=self.MEM_CACHE_REFRESH,
-                         mutex_lock=mutex_lock)
+                 redis: UserCache, storage: UserStorage,
+                 mutex_lock: threading.Lock, cache_pool: CachePool):
+        super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool)
         self._user = user
         self._redis = redis
         self._dos = storage
 
-    # Override
+    @property  # Override
     def cache_key(self) -> ID:
         return self._user
 
-    # Override
-    async def _load_redis_cache(self) -> Optional[List[ID]]:
-        return await self._redis.get_contacts(identifier=self._user)
+
+class UsrTask(BaseTask):
 
     # Override
-    async def _save_redis_cache(self, value: List[ID]) -> bool:
-        return await self._redis.save_contacts(contacts=value, identifier=self._user)
+    async def _read_data(self) -> Optional[List[ID]]:
+        # 1. get from redis server
+        contacts = await self._redis.get_contacts(identifier=self._user)
+        if contacts is not None:
+            return contacts
+        # 2. get from local storage
+        contacts = await self._dos.get_contacts(user=self._user)
+        if contacts is not None:
+            # 3. update redis server
+            await self._redis.save_contacts(contacts=contacts, identifier=self._user)
+            return contacts
 
     # Override
-    async def _load_local_storage(self) -> Optional[List[ID]]:
-        return await self._dos.get_contacts(user=self._user)
+    async def _write_data(self, value: List[ID]) -> bool:
+        # 1. store into redis server
+        ok1 = await self._redis.save_contacts(contacts=value, identifier=self._user)
+        # 2. save into local storage
+        ok2 = await self._dos.save_contacts(contacts=value, user=self._user)
+        return ok1 or ok2
+
+
+class ConTask(BaseTask):
 
     # Override
-    async def _save_local_storage(self, value: List[ID]) -> bool:
-        return await self._dos.save_contacts(contacts=value, user=self._user)
-
-
-class ConTask(UsrTask):
-
-    # Override
-    async def _load_redis_cache(self) -> Optional[Command]:
-        return await self._redis.get_contacts_command(identifier=self._user)
-
-    # Override
-    async def _save_redis_cache(self, value: Command) -> bool:
-        return await self._redis.save_contacts_command(content=value, identifier=self._user)
+    async def _read_data(self) -> Optional[Command]:
+        # 1. get from redis server
+        cmd = await self._redis.get_contacts_command(identifier=self._user)
+        if cmd is not None:
+            return cmd
+        # 2. get from local storage
+        cmd = await self._dos.get_contacts_command(identifier=self._user)
+        if cmd is not None:
+            # 3. update redis server
+            await self._redis.save_contacts_command(content=cmd, identifier=self._user)
+            return cmd
 
     # Override
-    async def _load_local_storage(self) -> Optional[Command]:
-        return await self._dos.get_contacts_command(identifier=self._user)
+    async def _write_data(self, value: Command) -> bool:
+        # 1. store into redis server
+        ok1 = await self._redis.save_contacts_command(content=value, identifier=self._user)
+        # 2. save into local storage
+        ok2 = await self._dos.save_contacts_command(content=value, identifier=self._user)
+        return ok1 or ok2
+
+
+class BloTask(BaseTask):
 
     # Override
-    async def _save_local_storage(self, value: Command) -> bool:
-        return await self._dos.save_contacts_command(content=value, identifier=self._user)
-
-
-class BloTask(UsrTask):
-
-    # Override
-    async def _load_redis_cache(self) -> Optional[BlockCommand]:
-        return await self._redis.get_block_command(identifier=self._user)
-
-    # Override
-    async def _save_redis_cache(self, value: BlockCommand) -> bool:
-        return await self._redis.save_block_command(content=value, identifier=self._user)
+    async def _read_data(self) -> Optional[BlockCommand]:
+        # 1. get from redis server
+        cmd = await self._redis.get_block_command(identifier=self._user)
+        if cmd is not None:
+            return cmd
+        # 2. get from local storage
+        cmd = await self._dos.get_block_command(identifier=self._user)
+        if cmd is not None:
+            # 3. update redis server
+            await self._redis.save_block_command(content=cmd, identifier=self._user)
+            return cmd
 
     # Override
-    async def _load_local_storage(self) -> Optional[BlockCommand]:
-        return await self._dos.get_block_command(identifier=self._user)
+    async def _write_data(self, value: BlockCommand) -> bool:
+        # 1. store into redis server
+        ok1 = await self._redis.save_block_command(content=value, identifier=self._user)
+        # 2. save into local storage
+        ok2 = await self._dos.save_block_command(content=value, identifier=self._user)
+        return ok1 or ok2
+
+
+class MutTask(BaseTask):
 
     # Override
-    async def _save_local_storage(self, value: BlockCommand) -> bool:
-        return await self._dos.save_block_command(content=value, identifier=self._user)
-
-
-class MutTask(UsrTask):
-
-    # Override
-    async def _load_redis_cache(self) -> Optional[MuteCommand]:
-        return await self._redis.get_mute_command(identifier=self._user)
-
-    # Override
-    async def _save_redis_cache(self, value: MuteCommand) -> bool:
-        return await self._redis.save_mute_command(content=value, identifier=self._user)
+    async def _read_data(self) -> Optional[MuteCommand]:
+        # 1. get from redis server
+        cmd = await self._redis.get_mute_command(identifier=self._user)
+        if cmd is not None:
+            return cmd
+        # 2. get from local storage
+        cmd = await self._dos.get_mute_command(identifier=self._user)
+        if cmd is not None:
+            # 3. update redis server
+            await self._redis.save_mute_command(content=cmd, identifier=self._user)
+            return cmd
 
     # Override
-    async def _load_local_storage(self) -> Optional[MuteCommand]:
-        return await self._dos.get_mute_command(identifier=self._user)
-
-    # Override
-    async def _save_local_storage(self, value: MuteCommand) -> bool:
-        return await self._dos.save_mute_command(content=value, identifier=self._user)
+    async def _write_data(self, value: MuteCommand) -> bool:
+        # 1. store into redis server
+        ok1 = await self._redis.save_mute_command(content=value, identifier=self._user)
+        # 2. save into local storage
+        ok2 = await self._dos.save_mute_command(content=value, identifier=self._user)
+        return ok1 or ok2
 
 
 class UserTable(UserDBI, ContactDBI):

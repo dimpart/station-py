@@ -30,118 +30,96 @@ from aiou.mem import CachePool
 
 from dimples import ID, Document, DocumentUtils
 from dimples import DocumentDBI
-from dimples.utils import SharedCacheManager
 from dimples.utils import Config
 from dimples.database import DbTask
+from dimples.database.t_base import DataCache
 
 from .redis import DocumentCache
 from .dos import DocumentStorage
 
 
-class DocTask(DbTask):
-
-    MEM_CACHE_EXPIRES = 300  # seconds
-    MEM_CACHE_REFRESH = 32   # seconds
+class DocTask(DbTask[ID, List[Document]]):
 
     def __init__(self, identifier: ID,
-                 cache_pool: CachePool, redis: DocumentCache, storage: DocumentStorage,
-                 mutex_lock: threading.Lock):
-        super().__init__(cache_pool=cache_pool,
-                         cache_expires=self.MEM_CACHE_EXPIRES,
-                         cache_refresh=self.MEM_CACHE_REFRESH,
-                         mutex_lock=mutex_lock)
+                 redis: DocumentCache, storage: DocumentStorage,
+                 mutex_lock: threading.Lock, cache_pool: CachePool):
+        super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool)
         self._identifier = identifier
         self._redis = redis
         self._dos = storage
 
-    # Override
+    @property  # Override
     def cache_key(self) -> ID:
         return self._identifier
 
     # Override
-    async def _load_redis_cache(self) -> Optional[List[Document]]:
+    async def _read_data(self) -> Optional[List[Document]]:
+        # 1. get from redis server
         docs = await self._redis.load_documents(identifier=self._identifier)
-        if docs is None or len(docs) == 0:
-            return None
-        else:
+        if docs is not None and len(docs) > 0:
             return docs
-
-    # Override
-    async def _save_redis_cache(self, value: List[Document]) -> bool:
-        return await self._redis.save_documents(documents=value, identifier=self._identifier)
-
-    # Override
-    async def _load_local_storage(self) -> Optional[List[Document]]:
+        # 2. get from local storage
         docs = await self._dos.load_documents(identifier=self._identifier)
-        if docs is None or len(docs) == 0:
-            return None
-        else:
+        if docs is not None and len(docs) > 0:
+            # 3. update redis server
+            await self._redis.save_documents(documents=docs, identifier=self._identifier)
             return docs
 
     # Override
-    async def _save_local_storage(self, value: List[Document]) -> bool:
-        return await self._dos.save_documents(documents=value, identifier=self._identifier)
+    async def _write_data(self, value: List[Document]) -> bool:
+        # 1. store into redis server
+        ok1 = await self._redis.save_documents(documents=value, identifier=self._identifier)
+        # 2. save into local storage
+        ok2 = await self._dos.save_documents(documents=value, identifier=self._identifier)
+        return ok1 or ok2
 
 
-class ScanTask(DbTask):
+class ScanTask(DbTask[ID, List[Document]]):
 
     ALL_KEY = 'all_documents'
 
     MEM_CACHE_EXPIRES = 3600  # seconds
     MEM_CACHE_REFRESH = 600   # seconds
 
-    def __init__(self,
-                 cache_pool: CachePool, storage: DocumentStorage,
-                 mutex_lock: threading.Lock):
-        super().__init__(cache_pool=cache_pool,
+    def __init__(self, storage: DocumentStorage,
+                 mutex_lock: threading.Lock, cache_pool: CachePool):
+        super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool,
                          cache_expires=self.MEM_CACHE_EXPIRES,
-                         cache_refresh=self.MEM_CACHE_REFRESH,
-                         mutex_lock=mutex_lock)
+                         cache_refresh=self.MEM_CACHE_REFRESH)
         self._dos = storage
 
-    # Override
+    @property  # Override
     def cache_key(self) -> str:
         return self.ALL_KEY
 
     # Override
-    async def _load_redis_cache(self) -> Optional[List[Document]]:
-        pass
-
-    # Override
-    async def _save_redis_cache(self, value: List[Document]) -> bool:
-        pass
-
-    # Override
-    async def _load_local_storage(self) -> Optional[List[Document]]:
+    async def _read_data(self) -> Optional[List[Document]]:
         return await self._dos.scan_documents()
 
     # Override
-    async def _save_local_storage(self, value: List[Document]) -> bool:
+    async def _write_data(self, value: List[Document]) -> bool:
         pass
 
 
-class DocumentTable(DocumentDBI):
+class DocumentTable(DataCache, DocumentDBI):
     """ Implementations of DocumentDBI """
 
     def __init__(self, config: Config):
-        super().__init__()
-        man = SharedCacheManager()
-        self._cache = man.get_pool(name='documents')  # ID => List[Document]
+        super().__init__(pool_name='documents')  # ID => List[Document]
         self._redis = DocumentCache(config=config)
         self._dos = DocumentStorage(config=config)
-        self._lock = threading.Lock()
 
     def show_info(self):
         self._dos.show_info()
 
     def _new_doc_task(self, identifier: ID) -> DocTask:
         return DocTask(identifier=identifier,
-                       cache_pool=self._cache, redis=self._redis, storage=self._dos,
-                       mutex_lock=self._lock)
+                       redis=self._redis, storage=self._dos,
+                       mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
     def _new_scan_task(self) -> ScanTask:
-        return ScanTask(cache_pool=self._cache, storage=self._dos,
-                        mutex_lock=self._lock)
+        return ScanTask(storage=self._dos,
+                        mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
     #
     #   Document DBI
@@ -166,8 +144,8 @@ class DocumentTable(DocumentDBI):
             my_documents.remove(old)
         my_documents.append(document)
         # update cache for Search Engine
-        with self._lock:
-            all_documents, _ = self._cache.fetch(key=ScanTask.ALL_KEY)
+        with self.lock:
+            all_documents, _ = self.cache.fetch(key=ScanTask.ALL_KEY)
             if all_documents is not None:
                 assert isinstance(all_documents, List), 'all_documents error: %s' % all_documents
                 all_documents.append(document)

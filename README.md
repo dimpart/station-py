@@ -86,10 +86,6 @@ Generating DIM account...
     5: ICP (Content Provider)
     6: Supervisor (Company President)
     7: Company (Super Group for ISP/ICP)
-    8: User (Deprecated)
-   16: Group (Deprecated)
-  136: Station (Deprecated)
-  200: Bot (Deprecated)
 >>> please input address type: 2
 !!! address type: 2
 !!! meta type: 1
@@ -177,10 +173,6 @@ Generating DIM account...
     5: ICP (Content Provider)
     6: Supervisor (Company President)
     7: Company (Super Group for ISP/ICP)
-    8: User (Deprecated)
-   16: Group (Deprecated)
-  136: Station (Deprecated)
-  200: Bot (Deprecated)
 >>> please input address type: 4
 !!! address type: 4
 !!! meta type: 1

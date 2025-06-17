@@ -27,13 +27,12 @@ import threading
 from typing import Optional, Union, Set, Dict
 
 from aiou.mem import CachePool
-from aiou.mem.cache import V
 
 from dimples import DateTime
 from dimples import ID
-from dimples.utils import SharedCacheManager
 from dimples.utils import Config
 from dimples.database import DbTask
+from dimples.database.t_base import DataCache
 
 from .redis import AddressNameCache
 from .dos import AddressNameStorage
@@ -42,109 +41,98 @@ from .dos import AddressNameStorage
 # noinspection PyAbstractClass
 class AnsTask(DbTask):
 
-    MEM_CACHE_EXPIRES = 300  # seconds
-    MEM_CACHE_REFRESH = 32   # seconds
-
     def __init__(self,
-                 cache_pool: CachePool, redis: AddressNameCache, storage: AddressNameStorage,
-                 mutex_lock: Union[threading.Lock, threading.RLock]):
-        super().__init__(cache_pool=cache_pool,
-                         cache_expires=self.MEM_CACHE_EXPIRES,
-                         cache_refresh=self.MEM_CACHE_REFRESH,
-                         mutex_lock=mutex_lock)
+                 redis: AddressNameCache, storage: AddressNameStorage,
+                 mutex_lock: Union[threading.Lock, threading.RLock], cache_pool: CachePool):
+        super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool)
         self._redis = redis
         self._dos = storage
-
-    # Override
-    async def _load_redis_cache(self) -> Optional[V]:
-        pass
-
-    # Override
-    async def _save_redis_cache(self, value: V) -> bool:
-        pass
-
-    # Override
-    async def _load_local_storage(self) -> Optional[V]:
-        pass
-
-    # Override
-    async def _save_local_storage(self, value: V) -> bool:
-        pass
 
 
 class AllTask(AnsTask):
 
     ALL_KEY = 'all_records'
 
-    # Override
+    @property  # Override
     def cache_key(self) -> str:
         return self.ALL_KEY
 
     # Override
-    async def _load_local_storage(self) -> Optional[Dict[str, ID]]:
+    async def _read_data(self) -> Optional[Dict[str, ID]]:
         return await self._dos.load_records()
+
+    # Override
+    async def _write_data(self, value: Dict[str, ID]) -> bool:
+        pass
 
 
 class IdTask(AnsTask):
 
     def __init__(self, name: str,
-                 cache_pool: CachePool, redis: AddressNameCache, storage: AddressNameStorage,
-                 mutex_lock: Union[threading.Lock, threading.RLock]):
-        super().__init__(cache_pool=cache_pool, redis=redis, storage=storage, mutex_lock=mutex_lock)
+                 redis: AddressNameCache, storage: AddressNameStorage,
+                 mutex_lock: Union[threading.Lock, threading.RLock], cache_pool: CachePool):
+        super().__init__(redis=redis, storage=storage,
+                         mutex_lock=mutex_lock, cache_pool=cache_pool)
         self._name = name
 
-    # Override
+    @property  # Override
     def cache_key(self) -> str:
         return self._name
 
     # Override
-    async def _load_redis_cache(self) -> Optional[ID]:
+    async def _read_data(self) -> Optional[ID]:
         return await self._redis.get_record(name=self._name)
+
+    # Override
+    async def _write_data(self, value: ID) -> bool:
+        pass
 
 
 class NameTask(AnsTask):
 
     def __init__(self, identifier: ID,
-                 cache_pool: CachePool, redis: AddressNameCache, storage: AddressNameStorage,
-                 mutex_lock: Union[threading.Lock, threading.RLock]):
-        super().__init__(cache_pool=cache_pool, redis=redis, storage=storage, mutex_lock=mutex_lock)
+                 redis: AddressNameCache, storage: AddressNameStorage,
+                 mutex_lock: Union[threading.Lock, threading.RLock], cache_pool: CachePool):
+        super().__init__(redis=redis, storage=storage,
+                         mutex_lock=mutex_lock, cache_pool=cache_pool)
         self._identifier = identifier
 
-    # Override
+    @property  # Override
     def cache_key(self) -> ID:
         return self._identifier
 
     # Override
-    async def _load_redis_cache(self) -> Optional[Set[str]]:
+    async def _read_data(self) -> Optional[Set[str]]:
         return await self._redis.get_names(identifier=self._identifier)
 
+    # Override
+    async def _write_data(self, value: Set[str]) -> bool:
+        pass
 
-class AddressNameTable:
+
+class AddressNameTable(DataCache):
 
     def __init__(self, config: Config):
-        super().__init__()
-        man = SharedCacheManager()
-        self._cache = man.get_pool(name='ans')  # str => ID
+        super().__init__(pool_name='ans')  # str => ID
         self._redis = AddressNameCache(config=config)
         self._dos = AddressNameStorage(config=config)
-        self._lock = threading.RLock()
 
     def show_info(self):
         self._dos.show_info()
 
     def _new_all_task(self) -> AllTask:
-        return AllTask(cache_pool=self._cache, redis=self._redis, storage=self._dos,
-                       mutex_lock=self._lock)
+        return AllTask(redis=self._redis, storage=self._dos,
+                       mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
     def _new_id_task(self, name: str) -> IdTask:
         return IdTask(name=name,
-                      cache_pool=self._cache, redis=self._redis, storage=self._dos,
-                      mutex_lock=self._lock)
+                      redis=self._redis, storage=self._dos,
+                      mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
     def _new_name_task(self, identifier: ID) -> NameTask:
         return NameTask(identifier=identifier,
-                        cache_pool=self._cache, redis=self._redis, storage=self._dos,
-                        mutex_lock=self._lock)
+                        redis=self._redis, storage=self._dos,
+                        mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
     async def _load_records(self) -> Dict[str, ID]:
         task = self._new_all_task()
@@ -153,16 +141,16 @@ class AddressNameTable:
 
     async def save_record(self, name: str, identifier: ID) -> bool:
         now = DateTime.current_timestamp()
-        with self._lock:
+        with self.lock:
             #
             #  1. update memory cache
             #
             if identifier is not None:
                 # remove: ID => Set[str]
-                self._cache.erase(key=identifier)
+                self.cache.erase(key=identifier)
             all_records = await self._load_records()
             all_records[name] = identifier
-            self._cache.update(key=AllTask.ALL_KEY, value=all_records, life_span=AnsTask.MEM_CACHE_EXPIRES, now=now)
+            self.cache.update(key=AllTask.ALL_KEY, value=all_records, life_span=AnsTask.MEM_CACHE_EXPIRES, now=now)
             #
             #  2. update redis server
             #
@@ -190,10 +178,10 @@ class AddressNameTable:
         #
         #   3. update memory cache
         #
-        with self._lock:
+        with self.lock:
             if did is not None:
                 await self._redis.save_record(name=name, identifier=did)
-            self._cache.update(key=name, value=did, life_span=AnsTask.MEM_CACHE_EXPIRES)
+            self.cache.update(key=name, value=did, life_span=AnsTask.MEM_CACHE_EXPIRES)
         return did
 
     async def get_names(self, identifier: ID) -> Set[str]:
@@ -216,8 +204,8 @@ class AddressNameTable:
         #
         #   3. update memory cache
         #
-        with self._lock:
-            self._cache.update(key=identifier, value=names, life_span=AnsTask.MEM_CACHE_EXPIRES)
+        with self.lock:
+            self.cache.update(key=identifier, value=names, life_span=AnsTask.MEM_CACHE_EXPIRES)
         return names
 
 

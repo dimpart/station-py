@@ -35,4 +35,4 @@ dimp==2.2.2
 dimsdk==2.2.2
 dimplugins==2.2.2
 
-dimples==1.4.0
+dimples==1.4.1

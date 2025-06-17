@@ -29,77 +29,65 @@ from typing import Optional, List
 from aiou.mem import CachePool
 
 from dimples import ID
-from dimples.utils import SharedCacheManager
 from dimples.utils import Config
 from dimples.database import DbTask
+from dimples.database.t_base import DataCache
 
 from .redis import DeviceCache
 from .dos import DeviceStorage, DeviceInfo
 from .dos.device import insert_device
 
 
-class DevTask(DbTask):
-
-    MEM_CACHE_EXPIRES = 300  # seconds
-    MEM_CACHE_REFRESH = 32   # seconds
+class DevTask(DbTask[ID, List[DeviceInfo]]):
 
     def __init__(self, identifier: ID,
-                 cache_pool: CachePool, redis: DeviceCache, storage: DeviceStorage,
-                 mutex_lock: threading.Lock):
-        super().__init__(cache_pool=cache_pool,
-                         cache_expires=self.MEM_CACHE_EXPIRES,
-                         cache_refresh=self.MEM_CACHE_REFRESH,
-                         mutex_lock=mutex_lock)
+                 redis: DeviceCache, storage: DeviceStorage,
+                 mutex_lock: threading.Lock, cache_pool: CachePool):
+        super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool)
         self._identifier = identifier
         self._redis = redis
         self._dos = storage
 
-    # Override
+    @property  # Override
     def cache_key(self) -> ID:
         return self._identifier
 
     # Override
-    async def _load_redis_cache(self) -> Optional[List[DeviceInfo]]:
+    async def _read_data(self) -> Optional[List[DeviceInfo]]:
+        # 1. get from redis server
         devices = await self._redis.get_devices(identifier=self._identifier)
-        if devices is None or len(devices) == 0:
-            return None
-        else:
+        if devices is not None and len(devices) > 0:
             return devices
-
-    # Override
-    async def _save_redis_cache(self, value: List[DeviceInfo]) -> bool:
-        return await self._redis.save_devices(devices=value, identifier=self._identifier)
-
-    # Override
-    async def _load_local_storage(self) -> Optional[List[DeviceInfo]]:
+        # 2. get from local storage
         devices = await self._dos.get_devices(identifier=self._identifier)
-        if devices is None or len(devices) == 0:
-            return None
-        else:
+        if devices is not None and len(devices) > 0:
+            # 3. update redis server
+            await self._redis.save_devices(devices=devices, identifier=self._identifier)
             return devices
 
     # Override
-    async def _save_local_storage(self, value: List[DeviceInfo]) -> bool:
-        return await self._dos.save_devices(devices=value, identifier=self._identifier)
+    async def _write_data(self, value: List[DeviceInfo]) -> bool:
+        # 1. store into redis server
+        ok1 = await self._redis.save_devices(devices=value, identifier=self._identifier)
+        # 2. save into local storage
+        ok2 = await self._dos.save_devices(devices=value, identifier=self._identifier)
+        return ok1 or ok2
 
 
-class DeviceTable:
+class DeviceTable(DataCache):
 
     def __init__(self, config: Config):
-        super().__init__()
-        man = SharedCacheManager()
-        self._cache = man.get_pool(name='devices')  # ID => DeviceInfo
+        super().__init__(pool_name='devices')  # ID => DeviceInfo
         self._redis = DeviceCache(config=config)
         self._dos = DeviceStorage(config=config)
-        self._lock = threading.Lock()
 
     def show_info(self):
         self._dos.show_info()
 
     def _new_task(self, identifier: ID) -> DevTask:
         return DevTask(identifier=identifier,
-                       cache_pool=self._cache, redis=self._redis, storage=self._dos,
-                       mutex_lock=self._lock)
+                       redis=self._redis, storage=self._dos,
+                       mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
     async def get_devices(self, identifier: ID) -> Optional[List[DeviceInfo]]:
         task = self._new_task(identifier=identifier)
