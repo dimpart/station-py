@@ -56,8 +56,8 @@
 
 from typing import Optional, Any, List, Dict
 
-from mkm.types import Dictionary
-from dimsdk import ID, BaseCommand
+from dimples import Dictionary
+from dimples import ID, BaseCommand
 
 
 class PushAlert(Dictionary):

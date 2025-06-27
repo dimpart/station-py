@@ -51,7 +51,7 @@ class StorageCommandProcessor(BaseCommandProcessor):
 
     @property
     def database(self) -> Database:
-        db = self.facebook.archivist.database
+        db = self.facebook.barrack.database
         assert isinstance(db, Database), 'database error: %s' % db
         return db
 

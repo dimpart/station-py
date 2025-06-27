@@ -28,11 +28,11 @@ from typing import Optional, List
 
 from aiou.mem import CachePool
 
+from dimples import DocumentType
 from dimples import ID, Document, DocumentUtils
 from dimples import DocumentDBI
 from dimples.utils import Config
-from dimples.database import DbTask
-from dimples.database.t_base import DataCache
+from dimples.database import DbTask, DataCache
 
 from .redis import DocumentCache
 from .dos import DocumentStorage
@@ -129,13 +129,13 @@ class DocumentTable(DataCache, DocumentDBI):
     async def save_document(self, document: Document) -> bool:
         assert document.valid, 'document invalid: %s' % document
         identifier = document.identifier
-        doc_type = document.type
+        doc_type = DocumentUtils.get_document_type(document=document)
         #
         #  check old documents
         #
         my_documents = await self.get_documents(identifier=identifier)
         old = DocumentUtils.last_document(my_documents, doc_type)
-        if old is None and doc_type == Document.VISA:
+        if old is None and doc_type == DocumentType.VISA:
             old = DocumentUtils.last_document(my_documents, 'profile')
         if old is not None:
             if DocumentUtils.is_expired(document, old):

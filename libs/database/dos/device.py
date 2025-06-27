@@ -25,7 +25,7 @@
 
 from typing import Optional, Any, List, Dict
 
-from mkm.types import Converter
+from dimples import Converter
 from dimples import DateTime
 from dimples import ID
 from dimples.utils import is_before

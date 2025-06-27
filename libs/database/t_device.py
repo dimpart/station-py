@@ -30,8 +30,7 @@ from aiou.mem import CachePool
 
 from dimples import ID
 from dimples.utils import Config
-from dimples.database import DbTask
-from dimples.database.t_base import DataCache
+from dimples.database import DbTask, DataCache
 
 from .redis import DeviceCache
 from .dos import DeviceStorage, DeviceInfo

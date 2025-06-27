@@ -199,7 +199,7 @@ async def create_database(config: Config) -> Database:
 async def create_facebook(database: AccountDBI) -> ServerFacebook:
     """ create facebook """
     facebook = ServerFacebook(database=database)
-    facebook.archivist = ServerArchivist(facebook=facebook, database=database)
+    facebook.barrack = ServerArchivist(facebook=facebook, database=database)
     facebook.checker = ServerChecker(facebook=facebook, database=database)
     # set for group manager
     man = SharedGroupManager()

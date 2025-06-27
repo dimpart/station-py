@@ -84,8 +84,6 @@ Generating DIM account...
     3: ISP (Service Provider)
     4: Bot (Business Node)
     5: ICP (Content Provider)
-    6: Supervisor (Company President)
-    7: Company (Super Group for ISP/ICP)
 >>> please input address type: 2
 !!! address type: 2
 !!! meta type: 1
@@ -171,8 +169,6 @@ Generating DIM account...
     3: ISP (Service Provider)
     4: Bot (Business Node)
     5: ICP (Content Provider)
-    6: Supervisor (Company President)
-    7: Company (Super Group for ISP/ICP)
 >>> please input address type: 4
 !!! address type: 4
 !!! meta type: 1

@@ -28,7 +28,7 @@
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
-from typing import Optional, Union
+from typing import Optional
 
 from dimples import ContentType
 from dimples import ReportCommand
@@ -60,7 +60,7 @@ class ServerProcessor(ServerMessageProcessor):
 class ServerProcessorCreator(ServerContentProcessorCreator):
 
     # Override
-    def create_content_processor(self, msg_type: Union[int, ContentType]) -> Optional[ContentProcessor]:
+    def create_content_processor(self, msg_type: str) -> Optional[ContentProcessor]:
         # text
         if msg_type == ContentType.TEXT:
             return TextContentProcessor(facebook=self.facebook, messenger=self.messenger)
@@ -71,7 +71,7 @@ class ServerProcessorCreator(ServerContentProcessorCreator):
         return super().create_content_processor(msg_type=msg_type)
 
     # Override
-    def create_command_processor(self, msg_type: Union[int, ContentType], cmd: str) -> Optional[ContentProcessor]:
+    def create_command_processor(self, msg_type: str, cmd: str) -> Optional[ContentProcessor]:
         # handshake
         if cmd == HandshakeCommand.HANDSHAKE:
             return ServerHandshakeProcessor(facebook=self.facebook, messenger=self.messenger)

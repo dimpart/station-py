@@ -36,6 +36,8 @@ import sys
 import time
 from typing import Optional, List
 
+from dimples import AsymmetricAlgorithms
+from dimples import MetaType, DocumentType
 from dimples import PrivateKey
 from dimples import Meta, Document
 from dimples import EntityType, ID
@@ -186,9 +188,9 @@ class Sergeant(Logging):
         """ create new bot """
         seed = 'soldier%03d' % sn
         # 1. generate private key
-        pri_key = PrivateKey.generate(algorithm=PrivateKey.RSA)
+        pri_key = PrivateKey.generate(algorithm=AsymmetricAlgorithms.RSA)
         # 2. generate meta
-        meta = Meta.generate(version=Meta.MKM, private_key=pri_key, seed=seed)
+        meta = Meta.generate(version=MetaType.MKM, private_key=pri_key, seed=seed)
         # 3. generate ID
         identifier = ID.generate(meta=meta, network=EntityType.BOT)
         Log.info(msg='NewID: %s\n' % identifier)
@@ -199,7 +201,7 @@ class Sergeant(Logging):
         await database.save_private_key(key=pri_key, user=identifier)
         await facebook.save_meta(meta=meta, identifier=identifier)
         # 5. create visa
-        visa = Document.create(doc_type=Document.VISA, identifier=identifier)
+        visa = Document.create(doc_type=DocumentType.VISA, identifier=identifier)
         visa.name = 'Soldier %03d @%s' % (sn, cls.LANDING_POINT)
         # 6. sign and save visa
         visa.sign(private_key=pri_key)

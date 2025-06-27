@@ -31,9 +31,8 @@
     Bot as Search Engine to managing metas & documents
 """
 
-from typing import Optional, Union
+from typing import Optional
 
-from dimples import ContentType
 from dimples import ContentProcessor, ContentProcessorCreator
 from dimples import Facebook, Messenger
 from dimples.client.cpu import ClientContentProcessorCreator
@@ -56,7 +55,7 @@ from sbots.shared import create_config, start_bot
 class ArchivistContentProcessorCreator(ClientContentProcessorCreator):
 
     # Override
-    def create_command_processor(self, msg_type: Union[int, ContentType], cmd: str) -> Optional[ContentProcessor]:
+    def create_command_processor(self, msg_type: str, cmd: str) -> Optional[ContentProcessor]:
         # search
         if cmd == SearchCommand.SEARCH:
             return SearchCommandProcessor(facebook=self.facebook, messenger=self.messenger)

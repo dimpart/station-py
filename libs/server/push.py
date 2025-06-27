@@ -96,12 +96,12 @@ class DefaultPushService(PushService, Logging):
             for msg in messages:
                 if msg.time < expired:
                     env = self._origin_envelope(msg=msg)
-                    self.warning(msg='drop expired message: %s -> %s (group: %s) type: %d'
+                    self.warning(msg='drop expired message: %s -> %s (group: %s) type: %s'
                                      % (env.sender, msg.receiver, env.group, env.type))
                     continue
                 if await mute_filter.is_muted(msg=msg):
                     env = self._origin_envelope(msg=msg)
-                    self.info(msg='muted sender: %s -> %s (group: %s) type: %d'
+                    self.info(msg='muted sender: %s -> %s (group: %s) type: %s'
                                   % (env.sender, msg.receiver, env.group, env.type))
                     continue
                 # build push item for message
@@ -131,7 +131,7 @@ class DefaultPushService(PushService, Logging):
         # 2. build title & content text
         title, text = await self._build_message(sender=sender, receiver=receiver, group=group, msg_type=msg_type)
         if text is None:
-            self.info(msg='ignore msg type: %s -> %s (group: %s) type: %d' % (sender, receiver, group, msg_type))
+            self.info(msg='ignore msg type: %s -> %s (group: %s) type: %s' % (sender, receiver, group, msg_type))
             return None
         # 3. increase badge
         badge = badge_keeper.increase_badge(identifier=receiver)
@@ -153,28 +153,28 @@ class DefaultPushService(PushService, Logging):
         return env
 
     async def _build_message(self, sender: ID, receiver: ID,
-                             group: ID, msg_type: int) -> Tuple[Optional[str], Optional[str]]:
+                             group: ID, msg_type: str) -> Tuple[Optional[str], Optional[str]]:
         """ build title, content for notification """
         # get title, body template
-        if msg_type == 0:
+        if msg_type == ContentType.ANY or msg_type == '*':
             title = 'Message'
             body = PushTmpl.recv_message if group is None else PushTmpl.grp_recv_message
-        elif msg_type == ContentType.TEXT:
+        elif msg_type == ContentType.TEXT or msg_type == 'text':
             title = 'Text Message'
             body = PushTmpl.recv_text if group is None else PushTmpl.grp_recv_text
-        elif msg_type == ContentType.FILE:
+        elif msg_type == ContentType.FILE or msg_type == 'file':
             title = 'File'
             body = PushTmpl.recv_file if group is None else PushTmpl.grp_recv_file
-        elif msg_type == ContentType.IMAGE:
+        elif msg_type == ContentType.IMAGE or msg_type == 'image':
             title = 'Image'
             body = PushTmpl.recv_image if group is None else PushTmpl.grp_recv_image
-        elif msg_type == ContentType.AUDIO:
+        elif msg_type == ContentType.AUDIO or msg_type == 'audio':
             title = 'Voice'
             body = PushTmpl.recv_voice if group is None else PushTmpl.grp_recv_voice
-        elif msg_type == ContentType.VIDEO:
+        elif msg_type == ContentType.VIDEO or msg_type == 'video':
             title = 'Video'
             body = PushTmpl.recv_video if group is None else PushTmpl.grp_recv_video
-        elif msg_type in [ContentType.MONEY, ContentType.TRANSFER]:
+        elif msg_type in [ContentType.MONEY, ContentType.TRANSFER, 'money', 'transfer']:
             title = 'Money'
             body = PushTmpl.recv_money if group is None else PushTmpl.grp_recv_money
         else:

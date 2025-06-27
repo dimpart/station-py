@@ -32,9 +32,9 @@
 """
 
 import time
-from typing import Optional, Union, List
+from typing import Optional, List
 
-from dimples import ContentType, Content, ReliableMessage
+from dimples import Content, ReliableMessage
 from dimples import ContentProcessor, ContentProcessorCreator
 from dimples import BaseCommandProcessor
 from dimples import Facebook, Messenger
@@ -87,7 +87,7 @@ class PushCommandProcessor(BaseCommandProcessor, Logging):
 class BotContentProcessorCreator(ClientContentProcessorCreator):
 
     # Override
-    def create_command_processor(self, msg_type: Union[int, ContentType], cmd: str) -> Optional[ContentProcessor]:
+    def create_command_processor(self, msg_type: str, cmd: str) -> Optional[ContentProcessor]:
         # push
         if cmd == PushCommand.PUSH:
             return PushCommandProcessor(facebook=self.facebook, messenger=self.messenger)

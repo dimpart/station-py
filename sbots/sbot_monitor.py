@@ -81,7 +81,7 @@
         https://github.com/dimchat/dkd-py/blob/master/dkd/protocol/types.py
 """
 
-from typing import Optional, Union, List
+from typing import Optional, List
 
 from dimples import ID, ReliableMessage
 from dimples import ContentType, Content
@@ -210,7 +210,7 @@ class StatContentProcessor(CustomizedContentProcessor, Logging):
 class BotContentProcessorCreator(ClientContentProcessorCreator):
 
     # Override
-    def create_content_processor(self, msg_type: Union[int, ContentType]) -> Optional[ContentProcessor]:
+    def create_content_processor(self, msg_type: str) -> Optional[ContentProcessor]:
         # application customized
         if msg_type == ContentType.CUSTOMIZED:
             return StatContentProcessor(facebook=self.facebook, messenger=self.messenger)
