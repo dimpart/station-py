@@ -94,14 +94,14 @@ class StorageCommand(BaseCommand):
     #
     @property
     def identifier(self) -> ID:
-        return ID.parse(identifier=self.get('ID'))
+        return ID.parse(identifier=self.get('did'))
 
     @identifier.setter
     def identifier(self, value: ID):
         if value is None:
-            self.pop('ID', None)
+            self.pop('did', None)
         else:
-            self['ID'] = str(value)
+            self['did'] = str(value)
 
     #
     #   Key (for decrypt data)

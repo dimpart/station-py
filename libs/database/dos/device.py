@@ -115,9 +115,9 @@ class DeviceInfo:
         return devices
 
     @classmethod
-    def revert(cls, array) -> List[Dict[str, Any]]:
-        devices = []
-        for item in array:
+    def revert(cls, devices) -> List[Dict[str, Any]]:
+        array = []
+        for item in devices:
             if isinstance(item, DeviceInfo):
                 info = item.to_json()
             elif isinstance(item, Dict):
@@ -126,8 +126,8 @@ class DeviceInfo:
                 info = {'token': str}
             else:
                 continue
-            devices.append(info)
-        return devices
+            array.append(info)
+        return array
 
 
 class DeviceStorage(Storage):
@@ -159,7 +159,7 @@ class DeviceStorage(Storage):
     async def save_devices(self, devices: List[DeviceInfo], identifier: ID) -> bool:
         path = self.__devices_path(identifier=identifier)
         self.info('saving %d device(s) into: %s' % (len(devices), path))
-        return await self.write_json(container=DeviceInfo.revert(array=devices), path=path)
+        return await self.write_json(container=DeviceInfo.revert(devices=devices), path=path)
 
     async def add_device(self, device: DeviceInfo, identifier: ID) -> bool:
         # get all devices info with ID

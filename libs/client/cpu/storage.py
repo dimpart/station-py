@@ -69,9 +69,9 @@ class StorageCommandProcessor(BaseCommandProcessor):
                 if stored is None:
                     text = 'Contacts not found.'
                     return self._respond_receipt(text=text, content=content, envelope=r_msg.envelope, extra={
-                        'template': 'Contacts not found: ${ID}.',
+                        'template': 'Contacts not found: ${did}.',
                         'replacements': {
-                            'ID': str(sender),
+                            'did': str(sender),
                         }
                     })
                 else:
@@ -82,17 +82,17 @@ class StorageCommandProcessor(BaseCommandProcessor):
                 if await db.save_contacts_command(content=content, identifier=sender):
                     text = 'Contacts received.'
                     return self._respond_receipt(text=text, content=content, envelope=r_msg.envelope, extra={
-                        'template': 'Contacts received: ${ID}.',
+                        'template': 'Contacts received: ${did}.',
                         'replacements': {
-                            'ID': str(sender),
+                            'did': str(sender),
                         }
                     })
                 else:
                     text = 'Contacts not changed.'
                     return self._respond_receipt(text=text, content=content, envelope=r_msg.envelope, extra={
-                        'template': 'Contacts not changed: ${ID}.',
+                        'template': 'Contacts not changed: ${did}.',
                         'replacements': {
-                            'ID': str(sender),
+                            'did': str(sender),
                         }
                     })
         else:

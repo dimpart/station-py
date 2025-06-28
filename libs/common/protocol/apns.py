@@ -284,13 +284,13 @@ class PushItem(Dictionary):
             return cls(dictionary=item, receiver=receiver, aps=aps)
 
     @classmethod
-    def convert(cls, items: List[Dict]):  # -> List[PushItem]:
-        array = []
-        for item in items:
+    def convert(cls, array: List[Dict]):  # -> List[PushItem]:
+        items = []
+        for item in array:
             pi = cls.parse(item=item)
             if pi is not None:
-                array.append(pi)
-        return array
+                items.append(pi)
+        return items
 
     @classmethod
     def revert(cls, items: List):  # -> List[Dict]:
@@ -345,7 +345,7 @@ class PushCommand(BaseCommand):
                     array = [single]
             else:
                 # convert push items
-                array = PushItem.convert(items=array)
+                array = PushItem.convert(array=array)
             if array is None:
                 array = []  # placeholder
             self.__items = array

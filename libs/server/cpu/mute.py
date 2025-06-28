@@ -65,17 +65,17 @@ class MuteCommandProcessor(BaseCommandProcessor):
             if await db.save_mute_command(content=content, identifier=sender):
                 text = 'Mute received.'
                 return self._respond_receipt(text=text, content=content, envelope=r_msg.envelope, extra={
-                    'template': 'Mute command received: ${ID}.',
+                    'template': 'Mute command received: ${did}.',
                     'replacements': {
-                        'ID': str(sender),
+                        'did': str(sender),
                     }
                 })
             else:
                 text = 'Mute not changed.'
                 return self._respond_receipt(text=text, content=content, envelope=r_msg.envelope, extra={
-                    'template': 'Mute command not changed: ${ID}.',
+                    'template': 'Mute command not changed: ${did}.',
                     'replacements': {
-                        'ID': str(sender),
+                        'did': str(sender),
                     }
                 })
         else:

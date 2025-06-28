@@ -93,8 +93,8 @@ class ReportCommandProcessor(BaseCommandProcessor, Logging):
         await db.add_device(device=device, identifier=sender)
         text = 'Device token received.'
         return self._respond_receipt(text=text, content=content, envelope=msg.envelope, extra={
-            'template': 'Device token received: ${ID}.',
+            'template': 'Device token received: ${did}.',
             'replacements': {
-                'ID': str(sender),
+                'did': str(sender),
             }
         })
