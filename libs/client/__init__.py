@@ -30,12 +30,11 @@
 """
 
 from dimples.client import ClientSession, SessionState
+from dimples.client import ClientArchivist
 from dimples.client import ClientFacebook
 from dimples.client import ClientMessenger
 from dimples.client import ClientMessageProcessor as ClientProcessor
 from dimples.client import Terminal
-
-from ..common import CommonArchivist as ClientArchivist
 
 from .packer import ClientPacker
 

@@ -197,15 +197,15 @@ class Sergeant(Logging):
         # 4. save private key & meta
         shared = GlobalVariable()
         database = shared.adb
-        facebook = shared.facebook
+        archivist = shared.facebook.archivist
         await database.save_private_key(key=pri_key, user=identifier)
-        await facebook.save_meta(meta=meta, identifier=identifier)
+        await archivist.save_meta(meta=meta, identifier=identifier)
         # 5. create visa
         visa = Document.create(doc_type=DocumentType.VISA, identifier=identifier)
         visa.name = 'Soldier %03d @%s' % (sn, cls.LANDING_POINT)
         # 6. sign and save visa
         visa.sign(private_key=pri_key)
-        await facebook.save_document(document=visa)
+        await archivist.save_document(document=visa)
         return identifier
 
 

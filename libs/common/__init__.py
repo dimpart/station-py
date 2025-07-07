@@ -33,6 +33,7 @@
 from dimples import CommonArchivist
 from dimples import CommonFacebook
 from dimples import CommonMessenger
+from dimples.common.compat import LibraryLoader
 
 from .protocol import PushAlert, PushInfo, PushItem
 
@@ -49,6 +50,7 @@ __all__ = [
     # push
     'PushAlert', 'PushInfo', 'PushItem',
 
+    'LibraryLoader',
     'ExtensionLoader',
 
 ]

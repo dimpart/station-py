@@ -23,12 +23,12 @@
 # SOFTWARE.
 # ==============================================================================
 
-from dimples.common.compat import CommonLoader
+from dimples.common.compat import CommonExtensionLoader
 
 from .protocol import *
 
 
-class ExtensionLoader(CommonLoader):
+class ExtensionLoader(CommonExtensionLoader):
 
     # Override
     def _register_command_factories(self):
