@@ -30,7 +30,7 @@
     Transform and send message
 """
 
-from typing import List
+from typing import Optional, List
 
 from dimples import Singleton
 from dimples import DateTime
@@ -38,14 +38,51 @@ from dimples import EntityType
 from dimples import ReliableMessage
 from dimples import ReceiptCommand
 
+from dimples.common import Session
+from dimples.common import CommonFacebook
+from dimples.common import MessageDBI
+
 from dimples.server import ServerMessenger as SuperMessenger
 
+from ..utils.mtp import MTPUtils
 from ..database import Database
 
 from .monitor import Monitor
 
 
 class ServerMessenger(SuperMessenger):
+
+    MTP_JSON = 0x01
+    MTP_DMTP = 0x02
+
+    def __init__(self, session: Session, facebook: CommonFacebook, database: MessageDBI):
+        super().__init__(session=session, facebook=facebook, database=database)
+        # Message Transfer Protocol
+        self.mtp_format = self.MTP_JSON
+
+    # Override
+    async def serialize_message(self, msg: ReliableMessage) -> bytes:
+        if self.mtp_format == self.MTP_JSON:
+            # JsON
+            return await super().serialize_message(msg=msg)
+        else:
+            # D-MTP
+            return MTPUtils.serialize_message(msg=msg)
+
+    # Override
+    async def deserialize_message(self, data: bytes) -> Optional[ReliableMessage]:
+        if data is None or len(data) < 2:
+            return None
+        if data.startswith(b'{'):
+            # JsON
+            msg = await super().deserialize_message(data=data)
+        else:
+            # D-MTP
+            msg = MTPUtils.deserialize_message(data=data)
+            if msg is not None:
+                # FIXME: just change it when first package received
+                self.mtp_format = self.MTP_DMTP
+        return msg
 
     # Override
     async def handshake_success(self):

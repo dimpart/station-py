@@ -27,58 +27,19 @@
     Common extensions for MessagePacker
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
-from typing import Optional
 
-from dimples import ReliableMessage
-
-from dimples.common import CommonFacebook
-# from dimples.client.packer import attach_key_digest
 from dimples.client import ClientMessagePacker as SuperPacker
-from dimples.client import ClientMessenger
 
-from ..utils.mtp import MTPUtils
+from .messenger import ClientMessenger
 
 
 class ClientPacker(SuperPacker):
-
-    MTP_JSON = 0x01
-    MTP_DMTP = 0x02
-
-    def __init__(self, facebook: CommonFacebook, messenger: ClientMessenger):
-        super().__init__(facebook=facebook, messenger=messenger)
-        # Message Transfer Protocol
-        self.mtp_format = self.MTP_JSON
 
     @property
     def messenger(self) -> ClientMessenger:
         transceiver = super().messenger
         assert isinstance(transceiver, ClientMessenger), 'messenger error: %s' % transceiver
         return transceiver
-
-    # Override
-    async def serialize_message(self, msg: ReliableMessage) -> bytes:
-        # attach_key_digest(msg=msg, messenger=self.messenger)
-        if self.mtp_format == self.MTP_JSON:
-            # JsON
-            return await super().serialize_message(msg=msg)
-        else:
-            # D-MTP
-            return MTPUtils.serialize_message(msg=msg)
-
-    # Override
-    async def deserialize_message(self, data: bytes) -> Optional[ReliableMessage]:
-        if data is None or len(data) < 2:
-            return None
-        if data.startswith(b'{'):
-            # JsON
-            msg = await super().deserialize_message(data=data)
-        else:
-            # D-MTP
-            msg = MTPUtils.deserialize_message(data=data)
-            if msg is not None:
-                # FIXME: just change it when first package received
-                self.mtp_format = self.MTP_DMTP
-        return msg
 
     # # Override
     # def encrypt_message(self, msg: InstantMessage) -> Optional[SecureMessage]:
