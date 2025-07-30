@@ -26,7 +26,8 @@
 from typing import List
 
 from dimples import ReliableMessage
-from dimples import Content, HandshakeCommand
+from dimples import Content
+from dimples import HandshakeCommand, BaseHandshakeCommand
 from dimples.server.cpu import HandshakeCommandProcessor
 
 
@@ -48,7 +49,7 @@ class ServerHandshakeProcessor(HandshakeCommandProcessor):
             # C -> S: Nice to meet you!
             messenger = self.messenger
             session = messenger.session
-            res = HandshakeCommand(title=self.TEST_SPEED_RESPOND)
+            res = BaseHandshakeCommand(title=self.TEST_SPEED_RESPOND)
             res['remote_address'] = session.remote_address
             return [res]
         elif title == self.TEST_SPEED_RESPOND:

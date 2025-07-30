@@ -81,20 +81,20 @@
         https://github.com/dimchat/dkd-py/blob/master/dkd/protocol/types.py
 """
 
-from typing import Optional, List
+from typing import List
 
 from dimples import ID, ReliableMessage
-from dimples import ContentType, Content
-from dimples import CustomizedContent
-from dimples import ContentProcessor, ContentProcessorCreator
+from dimples import Content
+from dimples import CustomizedContent, BaseCustomizedHandler
+from dimples import ContentProcessorCreator
 from dimples import Facebook, Messenger
+
 from dimples.utils import Log, Logging
 from dimples.utils import Runner
 from dimples.utils import Path
 from dimples.client import ClientMessenger
 from dimples.client import ClientMessageProcessor
 from dimples.client.cpu import ClientContentProcessorCreator
-from dimples.client.cpu import CustomizedContentProcessor
 
 path = Path.abs(path=__file__)
 path = Path.dir(path=path)
@@ -116,8 +116,7 @@ def _get_listeners(name: str) -> List[ID]:
     return ID.convert(array=array)
 
 
-class StatContentProcessor(CustomizedContentProcessor, Logging):
-    """ Process customized stat content """
+class StatHandler(BaseCustomizedHandler, Logging):
 
     def __init__(self, facebook, messenger):
         super().__init__(facebook=facebook, messenger=messenger)
@@ -156,29 +155,11 @@ class StatContentProcessor(CustomizedContentProcessor, Logging):
         return transceiver
 
     # Override
-    async def process_content(self, content: Content, r_msg: ReliableMessage) -> List[Content]:
-        assert isinstance(content, CustomizedContent), 'stat content error: %s' % content
-        app = content.application
-        mod = content.module
-        act = content.action
-        sender = r_msg.sender
-        self.debug(msg='received content from %s: %s, %s, %s' % (sender, app, mod, act))
-        return await super().process_content(content=content, r_msg=r_msg)
-
-    # Override
-    def _filter(self, app: str, content: CustomizedContent, msg: ReliableMessage) -> Optional[List[Content]]:
-        if app == 'chat.dim.monitor':
-            # app ID matched
-            return None
-        # unknown app ID
-        return super()._filter(app=app, content=content, msg=msg)
-
-    # Override
     async def handle_action(self, act: str, sender: ID,
                             content: CustomizedContent, msg: ReliableMessage) -> List[Content]:
         if act != 'post':
             self.error(msg='content error: %s' % content)
-            return []
+            return await super().handle_action(act=act, sender=sender, content=content, msg=msg)
         mod = content.module
         if mod == 'users':
             listeners = self.users_listeners
@@ -192,9 +173,9 @@ class StatContentProcessor(CustomizedContentProcessor, Logging):
                 content['U'] = str(sender)
         else:
             self.error(msg='unknown module: %s, action: %s' % (mod, act))
-            return []
+            return await super().handle_action(act=act, sender=sender, content=content, msg=msg)
         self.info(msg='redirecting content "%s" to %s ...' % (mod, listeners))
-        current = await self.messenger.facebook.current_user
+        current = await self.facebook.current_user
         assert current is not None, 'current user not found'
         uid = current.identifier
         assert uid not in listeners, 'should not happen: %s, %s' % (uid, listeners)
@@ -210,12 +191,15 @@ class StatContentProcessor(CustomizedContentProcessor, Logging):
 class BotContentProcessorCreator(ClientContentProcessorCreator):
 
     # Override
-    def create_content_processor(self, msg_type: str) -> Optional[ContentProcessor]:
-        # application customized
-        if msg_type == ContentType.CUSTOMIZED:
-            return StatContentProcessor(facebook=self.facebook, messenger=self.messenger)
-        # others
-        return super().create_content_processor(msg_type=msg_type)
+    def _create_customized_content_processor(self, facebook: Facebook, messenger: Messenger):  # AppCustomizedProcessor:
+        cpu = self._create_customized_content_processor(facebook=facebook, messenger=messenger)
+        # 'chat.dim.monitor:*'
+        handler = StatHandler(facebook=facebook, messenger=messenger)
+        app = 'chat.dim.monitor'
+        modules = ['users', 'stats', 'speeds']
+        for mod in modules:
+            cpu.set_handler(app=app, mod=mod, handler=handler)
+        return cpu
 
 
 class BotMessageProcessor(ClientMessageProcessor):
