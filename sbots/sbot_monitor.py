@@ -192,7 +192,7 @@ class BotContentProcessorCreator(ClientContentProcessorCreator):
 
     # Override
     def _create_customized_content_processor(self, facebook: Facebook, messenger: Messenger):  # AppCustomizedProcessor:
-        cpu = self._create_customized_content_processor(facebook=facebook, messenger=messenger)
+        cpu = super()._create_customized_content_processor(facebook=facebook, messenger=messenger)
         # 'chat.dim.monitor:*'
         handler = StatHandler(facebook=facebook, messenger=messenger)
         app = 'chat.dim.monitor'
