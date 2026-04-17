@@ -81,20 +81,22 @@
         https://github.com/dimchat/dkd-py/blob/master/dkd/protocol/types.py
 """
 
-from typing import List
+from typing import Union, List
 
 from dimples import ID, ReliableMessage
 from dimples import Content
-from dimples import CustomizedContent, BaseCustomizedHandler
-from dimples import ContentProcessorCreator
-from dimples import Facebook, Messenger
+from dimples import CustomizedContent
+from dimples import Messenger
+from dimples import MessageExtensions, shared_message_extensions
 
 from dimples.utils import Log, Logging
 from dimples.utils import Runner
 from dimples.utils import Path
-from dimples.client import ClientMessenger
+from dimples.client import ClientFacebook, ClientMessenger
 from dimples.client import ClientMessageProcessor
-from dimples.client.cpu import ClientContentProcessorCreator
+from dimples.client.cpu import BaseCustomizedContentHandler
+from dimples.client.cpu import AppCustomizedFilter
+from dimples.client.cpu import CustomizedFilterExtensions
 
 path = Path.abs(path=__file__)
 path = Path.dir(path=path)
@@ -116,10 +118,10 @@ def _get_listeners(name: str) -> List[ID]:
     return ID.convert(array=array)
 
 
-class StatHandler(BaseCustomizedHandler, Logging):
+class StatHandler(BaseCustomizedContentHandler, Logging):
 
-    def __init__(self, facebook, messenger):
-        super().__init__(facebook=facebook, messenger=messenger)
+    def __init__(self):
+        super().__init__()
         self.__users_listeners = None
         self.__stats_listeners = None
         self.__speeds_listeners = None
@@ -148,18 +150,14 @@ class StatHandler(BaseCustomizedHandler, Logging):
             self.__speeds_listeners = listeners
         return listeners
 
-    @property
-    def messenger(self) -> ClientMessenger:
-        transceiver = super().messenger
-        assert isinstance(transceiver, ClientMessenger), 'messenger error: %s' % transceiver
-        return transceiver
-
     # Override
-    async def handle_action(self, act: str, sender: ID,
-                            content: CustomizedContent, msg: ReliableMessage) -> List[Content]:
+    async def handle_action(self, content: CustomizedContent, msg: ReliableMessage,
+                            messenger: Messenger) -> List[Content]:
+        sender = msg.sender
+        act = content.action
         if act != 'post':
             self.error(msg='content error: %s' % content)
-            return await super().handle_action(act=act, sender=sender, content=content, msg=msg)
+            return await super().handle_action(content=content, msg=msg, messenger=messenger)
         mod = content.module
         if mod == 'users':
             listeners = self.users_listeners
@@ -173,40 +171,49 @@ class StatHandler(BaseCustomizedHandler, Logging):
                 content['U'] = str(sender)
         else:
             self.error(msg='unknown module: %s, action: %s' % (mod, act))
-            return await super().handle_action(act=act, sender=sender, content=content, msg=msg)
+            return await super().handle_action(content=content, msg=msg, messenger=messenger)
         self.info(msg='redirecting content "%s" to %s ...' % (mod, listeners))
-        current = await self.facebook.current_user
+        facebook = messenger.facebook
+        assert isinstance(facebook, ClientFacebook), 'facebook error: %s' % facebook
+        assert isinstance(messenger, ClientMessenger), 'messenger error: %s' % messenger
+        current = await facebook.current_user
         assert current is not None, 'current user not found'
         uid = current.identifier
         assert uid not in listeners, 'should not happen: %s, %s' % (uid, listeners)
         assert sender not in listeners, 'should not happen: %s, %s' % (sender, listeners)
         if len(listeners) > 0:
-            messenger = self.messenger
             for bot in listeners:
                 await messenger.send_content(sender=uid, receiver=bot, content=content)
         # respond nothing
         return []
 
 
-class BotContentProcessorCreator(ClientContentProcessorCreator):
-
-    # Override
-    def _create_customized_content_processor(self, facebook: Facebook, messenger: Messenger):  # AppCustomizedProcessor:
-        cpu = super()._create_customized_content_processor(facebook=facebook, messenger=messenger)
-        # 'chat.dim.monitor:*'
-        handler = StatHandler(facebook=facebook, messenger=messenger)
-        app = 'chat.dim.monitor'
-        modules = ['users', 'stats', 'speeds']
-        for mod in modules:
-            cpu.set_handler(app=app, mod=mod, handler=handler)
-        return cpu
+# -----------------------------------------------------------------------------
+#  Message Extensions
+# -----------------------------------------------------------------------------
 
 
-class BotMessageProcessor(ClientMessageProcessor):
+def message_extensions() -> Union[MessageExtensions, CustomizedFilterExtensions]:
+    return shared_message_extensions
 
-    # Override
-    def _create_creator(self, facebook: Facebook, messenger: Messenger) -> ContentProcessorCreator:
-        return BotContentProcessorCreator(facebook=self.facebook, messenger=self.messenger)
+
+def get_app_filter() -> AppCustomizedFilter:
+    ext = message_extensions()
+    app_filter = ext.customized_filter
+    if not isinstance(app_filter, AppCustomizedFilter):
+        app_filter = AppCustomizedFilter()
+        ext.customized_filter = app_filter
+    return app_filter
+
+
+def register_customized_handlers():
+    app_filter = get_app_filter()
+    # 'chat.dim.monitor:*'
+    handler = StatHandler()
+    app = 'chat.dim.monitor'
+    modules = ['users', 'stats', 'speeds']
+    for mod in modules:
+        app_filter.set_content_handler(app=app, mod=mod, handler=handler)
 
 
 #
@@ -223,10 +230,12 @@ async def async_main():
     shared = GlobalVariable()
     config = await create_config(app_name='ServiceBot: Monitor', default_config=DEFAULT_CONFIG)
     await shared.prepare(config=config)
+    # register handlers
+    register_customized_handlers()
     #
     #  Create & start the bot
     #
-    client = await start_bot(ans_name='monitor', processor_class=BotMessageProcessor)
+    client = await start_bot(ans_name='monitor', processor_class=ClientMessageProcessor)
     Log.warning(msg='bot stopped: %s' % client)
 
 

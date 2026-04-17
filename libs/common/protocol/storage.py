@@ -159,11 +159,11 @@ class StorageCommand(BaseCommand):
                 key = password
             elif private_key is not None:
                 # assert isinstance(private_key, PrivateKey), 'private key error: %s' % private_key
-                key_data = private_key.decrypt(self.key, params={})
+                key_data = private_key.decrypt(ciphertext=self.key)
                 js = utf8_decode(data=key_data)
                 key = SymmetricKey.parse(key=json_decode(string=js))
             # get encrypted data
             data = self.data
             if key is not None and data is not None:
-                self.__plaintext = key.decrypt(data=data, params={})
+                self.__plaintext = key.decrypt(ciphertext=data, params={})
         return self.__plaintext

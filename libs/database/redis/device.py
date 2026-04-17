@@ -68,7 +68,7 @@ class DeviceCache(RedisCache):
 
     async def save_devices(self, devices: List[DeviceInfo], identifier: ID) -> bool:
         array = DeviceInfo.revert(devices=devices)
-        js = json_encode(obj=array)
+        js = json_encode(container=array)
         value = utf8_encode(string=js)
         name = self.__cache_name(identifier=identifier)
         return await self.set(name=name, value=value, expires=self.EXPIRES)

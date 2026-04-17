@@ -352,7 +352,7 @@ async def _get_nickname(identifier: ID) -> Optional[str]:
     name = None
     doc = await facebook.get_document(identifier=identifier)
     if doc is not None:
-        name = doc.name
+        name = doc.get_property(name='name')
     if name is None or len(name) == 0:
         return str(identifier)
     else:

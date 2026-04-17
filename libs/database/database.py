@@ -138,7 +138,7 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
 
     # noinspection PyMethodMayBeStatic
     async def _verify_meta(self, meta: Meta, identifier: ID) -> bool:
-        if MetaUtils.match_identifier(identifier=identifier, meta=meta):
+        if MetaUtils.match_id(identifier=identifier, meta=meta):
             return True
         raise ValueError('meta not match ID: %s' % identifier)
 
@@ -160,19 +160,19 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         redis key: 'mkm.docs.keys'
     """
 
-    async def _verify_document(self, document: Document) -> bool:
+    async def _verify_document(self, document: Document, identifier: ID) -> bool:
         if document.valid:
             return True
-        meta = await self.get_meta(identifier=document.identifier)
-        assert meta is not None, 'meta not exists: %s' % document.identifier
+        meta = await self.get_meta(identifier=identifier)
+        assert meta is not None, 'meta not exists: %s' % identifier
         if document.verify(public_key=meta.public_key):
             return True
-        raise ValueError('document invalid: %s' % document.identifier)
+        raise ValueError('document invalid: %s' % identifier)
 
     # Override
-    async def save_document(self, document: Document) -> bool:
-        if await self._verify_document(document=document):
-            return await self.__document_table.save_document(document=document)
+    async def save_document(self, document: Document, identifier: ID) -> bool:
+        if await self._verify_document(document=document, identifier=identifier):
+            return await self.__document_table.save_document(document=document, identifier=identifier)
 
     # Override
     async def get_documents(self, identifier: ID) -> List[Document]:
@@ -319,14 +319,6 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
     # Override
     async def save_members(self, members: List[ID], group: ID) -> bool:
         return await self.__group_table.save_members(members=members, group=group)
-
-    # Override
-    async def get_assistants(self, group: ID) -> List[ID]:
-        return await self.__group_table.get_assistants(group=group)
-
-    # Override
-    async def save_assistants(self, assistants: List[ID], group: ID) -> bool:
-        return await self.__group_table.save_assistants(assistants=assistants, group=group)
 
     # Override
     async def get_administrators(self, group: ID) -> List[ID]:

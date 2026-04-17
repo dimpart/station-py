@@ -31,8 +31,8 @@ from .protocol import *
 class ExtensionLoader(CommonExtensionLoader):
 
     # Override
-    def _register_command_factories(self):
-        super()._register_command_factories()
+    def register_command_factories(self):
+        super().register_command_factories()
         # APNs
         self._set_command_factory(cmd=PushCommand.PUSH, command_class=PushCommand)
         # Report extra

@@ -150,12 +150,13 @@ async def search_users(keywords: str, start: int, limit: int,
     all_documents = await database.scan_documents()
     for doc in all_documents:
         # check duplicated
-        identifier = doc.identifier
+        did = doc.get('did')
+        identifier = ID.parse(identifier=did)
         if identifier in users:
             # already exists
             continue
         # get user info
-        name = doc.name
+        name = doc.get_property(name='name')
         if name is None:
             info = str(identifier)
         else:

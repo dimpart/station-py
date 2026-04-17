@@ -201,11 +201,12 @@ class Sergeant(Logging):
         await database.save_private_key(key=pri_key, user=identifier)
         await archivist.save_meta(meta=meta, identifier=identifier)
         # 5. create visa
-        visa = Document.create(doc_type=DocumentType.VISA, identifier=identifier)
+        visa = Document.create(doc_type=DocumentType.VISA)
+        visa.set_string(key='did', value=identifier)
         visa.name = 'Soldier %03d @%s' % (sn, cls.LANDING_POINT)
         # 6. sign and save visa
         visa.sign(private_key=pri_key)
-        await archivist.save_document(document=visa)
+        await archivist.save_document(document=visa, identifier=identifier)
         return identifier
 
 
