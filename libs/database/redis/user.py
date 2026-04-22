@@ -54,7 +54,7 @@ class UserCache(SuperCache):
             return Content.parse(content=dictionary)  # -> StorageCommand
 
     async def __save_command(self, key: str, content: Command) -> bool:
-        dictionary = content.dictionary
+        dictionary = content.to_dict()
         js = json_encode(container=dictionary)
         value = utf8_encode(string=js)
         return await self.set(name=key, value=value, expires=self.EXPIRES)

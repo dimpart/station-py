@@ -144,7 +144,7 @@ class SearchCommand(BaseCommand):
     def respond(cls, request: Command, keywords: str, users: List[ID]):
         cmd = SearchCommand(keywords=keywords, users=users)
         # extra info
-        info = request.copy_dictionary()
+        info = request.copy_dict()
         info.pop('type', None)
         info.pop('sn', None)
         info.pop('time', None)

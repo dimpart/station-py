@@ -188,7 +188,7 @@ class PushInfo(Dictionary):
     @classmethod
     def create(cls, alert: PushAlert, sound: str = None, badge: int = 0, category: str = None):  # -> PushInfo:
         info = {
-            'alert': alert.dictionary,
+            'alert': alert.to_dict(),
         }
         if sound is not None:
             info['sound'] = sound
@@ -247,7 +247,7 @@ class PushItem(Dictionary):
         if aps is None:
             dictionary = self.get(key='aps')
             if dictionary is None:
-                dictionary = self.dictionary
+                dictionary = self.to_dict()
             aps = PushInfo.parse(info=dictionary)
             assert aps is not None, 'push info error: %s' % dictionary
             self.__aps = aps
@@ -264,7 +264,7 @@ class PushItem(Dictionary):
         aps = PushInfo.create(alert=alert, sound=sound, badge=badge)
         item = {
             'receiver': str(receiver),
-            'aps': aps.dictionary,
+            'aps': aps.to_dict(),
         }
         return cls(dictionary=item, receiver=receiver, aps=aps)
 
@@ -297,7 +297,8 @@ class PushItem(Dictionary):
         array = []
         for item in items:
             assert isinstance(item, PushItem), 'push item error: %s' % item
-            array.append(item.dictionary)
+            info = item.to_dict()
+            array.append(info)
         return array
 
 
@@ -340,7 +341,8 @@ class PushCommand(BaseCommand):
             array = self.get('items')
             if array is None:
                 # check for single push item
-                single = PushItem.parse(item=self.dictionary)
+                info = self.to_dict()
+                single = PushItem.parse(item=info)
                 if single is not None:
                     array = [single]
             else:

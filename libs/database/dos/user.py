@@ -59,7 +59,8 @@ class UserStorage(SuperStorage):
         assert content is not None, 'contacts command cannot be empty'
         path = self.__contacts_command_path(identifier=identifier)
         self.info('Saving contacts command into: %s' % path)
-        return await self.write_json(container=content.dictionary, path=path)
+        info = content.to_dict()
+        return await self.write_json(container=info, path=path)
 
     async def get_contacts_command(self, identifier: ID) -> Optional[Command]:
         path = self.__contacts_command_path(identifier=identifier)
@@ -84,7 +85,8 @@ class UserStorage(SuperStorage):
         assert content is not None, 'block command cannot be empty'
         path = self.__block_command_path(identifier=identifier)
         self.info('Saving block command into: %s' % path)
-        return await self.write_json(container=content.dictionary, path=path)
+        info = content.to_dict()
+        return await self.write_json(container=info, path=path)
 
     async def get_block_command(self, identifier: ID) -> Optional[BlockCommand]:
         path = self.__block_command_path(identifier=identifier)
@@ -109,7 +111,8 @@ class UserStorage(SuperStorage):
         assert content is not None, 'mute command cannot be empty'
         path = self.__mute_command_path(identifier=identifier)
         self.info('Saving mute command into: %s' % path)
-        return await self.write_json(container=content.dictionary, path=path)
+        info = content.to_dict()
+        return await self.write_json(container=info, path=path)
 
     async def get_mute_command(self, identifier: ID) -> Optional[MuteCommand]:
         path = self.__mute_command_path(identifier=identifier)

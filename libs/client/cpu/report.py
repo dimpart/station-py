@@ -71,7 +71,7 @@ class ReportCommandProcessor(BaseCommandProcessor, Logging):
 
     async def __process_apns(self, content: ReportCommand, msg: ReliableMessage) -> List[Content]:
         # submit device token for APNs
-        info = content.dictionary
+        info = content.to_dict()
         token = info.get('device_token')
         if token is None:
             token = info.get('token')

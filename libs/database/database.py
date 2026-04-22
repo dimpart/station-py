@@ -161,8 +161,8 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
     """
 
     async def _verify_document(self, document: Document, identifier: ID) -> bool:
-        if document.valid:
-            return True
+        # if document.is_valid:
+        #     return True
         meta = await self.get_meta(identifier=identifier)
         assert meta is not None, 'meta not exists: %s' % identifier
         if document.verify(public_key=meta.public_key):

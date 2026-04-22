@@ -81,22 +81,21 @@
         https://github.com/dimchat/dkd-py/blob/master/dkd/protocol/types.py
 """
 
-from typing import Union, List
+from typing import List
 
 from dimples import ID, ReliableMessage
 from dimples import Content
 from dimples import CustomizedContent
 from dimples import Messenger
-from dimples import MessageExtensions, shared_message_extensions
+
+from dimples.client import ClientFacebook, ClientMessenger
+from dimples.client import ClientMessageProcessor
+from dimples.client.cpu import BaseCustomizedContentHandler
+from dimples.client.cpu.app.filter import get_app_filter
 
 from dimples.utils import Log, Logging
 from dimples.utils import Runner
 from dimples.utils import Path
-from dimples.client import ClientFacebook, ClientMessenger
-from dimples.client import ClientMessageProcessor
-from dimples.client.cpu import BaseCustomizedContentHandler
-from dimples.client.cpu import AppCustomizedFilter
-from dimples.client.cpu import CustomizedFilterExtensions
 
 path = Path.abs(path=__file__)
 path = Path.dir(path=path)
@@ -191,19 +190,6 @@ class StatHandler(BaseCustomizedContentHandler, Logging):
 # -----------------------------------------------------------------------------
 #  Message Extensions
 # -----------------------------------------------------------------------------
-
-
-def message_extensions() -> Union[MessageExtensions, CustomizedFilterExtensions]:
-    return shared_message_extensions
-
-
-def get_app_filter() -> AppCustomizedFilter:
-    ext = message_extensions()
-    app_filter = ext.customized_filter
-    if not isinstance(app_filter, AppCustomizedFilter):
-        app_filter = AppCustomizedFilter()
-        ext.customized_filter = app_filter
-    return app_filter
 
 
 def register_customized_handlers():

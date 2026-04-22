@@ -127,7 +127,7 @@ class DocumentTable(DataCache, DocumentDBI):
 
     # Override
     async def save_document(self, document: Document, identifier: ID) -> bool:
-        assert document.valid, 'document invalid: %s -> %s' % (identifier, document)
+        assert document.is_valid, 'document invalid: %s -> %s' % (identifier, document)
         doc_type = DocumentUtils.get_document_type(document=document)
         #
         #  check old documents
