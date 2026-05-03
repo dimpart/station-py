@@ -37,6 +37,7 @@ from weakref import WeakValueDictionary
 from dimples import base64_encode
 
 from udp.ba import IntegerData
+from udp import SocketAddress
 from udp import Hub
 
 from dmtp import LocationValue, StringValue, BinaryValue
@@ -60,7 +61,7 @@ class FieldValueEncoder(json.JSONEncoder):
 
 class Session:
 
-    def __init__(self, location: LocationValue, address: tuple):
+    def __init__(self, location: LocationValue, address: SocketAddress):
         super().__init__()
         self.__location = location
         self.__address = address
@@ -76,13 +77,13 @@ class Session:
         return self.__location
 
     @property
-    def address(self) -> tuple:
+    def address(self) -> SocketAddress:
         return self.__address
 
 
 class ContactManager(LocationDelegate):
 
-    def __init__(self, hub: Hub, local: tuple):
+    def __init__(self, hub: Hub, local: SocketAddress):
         super().__init__()
         self.identifier: str = ''
         self.nat: str = 'Unknown'
@@ -157,7 +158,7 @@ class ContactManager(LocationDelegate):
         # contact.purge(peer=self.__peer)
         return contact.get_location(address=self.__source_address)
 
-    def get_location(self, address: tuple) -> Optional[LocationValue]:
+    def get_location(self, address: SocketAddress) -> Optional[LocationValue]:
         location = self.__locations.get(address)
         if location is None:
             return None

@@ -30,11 +30,14 @@
 
 import threading
 import time
+from abc import ABC
 from typing import Optional
 
-from udp.ba import ByteArray
-from udp import Hub
 from startrek.net.state import StateOrder
+
+from udp.ba import ByteArray
+from udp import SocketAddress
+from udp import Hub, BaseHub
 
 from dmtp import Field
 from dmtp import TimestampValue, BinaryValue
@@ -238,7 +241,15 @@ class Contact:
     def is_address_expired(cls, address: Optional[tuple], hub: Hub) -> bool:
         if address is None:
             return True
-        conn = hub.connect(remote=address, local=None)
+        elif isinstance(hub, ContactHub):
+            return hub.is_connection_closed(address=address)
+
+
+# noinspection PyAbstractClass
+class ContactHub(BaseHub, ABC):
+
+    def is_connection_closed(self, address: Optional[SocketAddress]):
+        conn = self._get_connection(remote=address, local=None)
         if conn is None:
             return True
-        return conn.state == StateOrder.ERROR
+        return conn.state not in [StateOrder.READY, StateOrder.MAINTAINING, StateOrder.EXPIRED]

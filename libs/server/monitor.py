@@ -30,7 +30,10 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union, Tuple, List, Dict
 
 from dimples import DateTime
-from dimples import ID, ReliableMessage
+from dimples import ID
+from dimples import DocumentUtils
+
+from dimples import ReliableMessage
 from dimples import CustomizedContent
 from dimples import SessionDBI
 
@@ -349,10 +352,8 @@ async def _get_nickname(identifier: ID) -> Optional[str]:
     if facebook is None:
         Log.warning(msg='facebook not found')
         return None
-    name = None
     doc = await facebook.get_document(identifier=identifier)
-    if doc is not None:
-        name = doc.get_property(name='name')
+    name = None if doc is None else DocumentUtils.get_document_name(document=doc)
     if name is None or len(name) == 0:
         return str(identifier)
     else:

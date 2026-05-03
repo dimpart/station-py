@@ -34,6 +34,7 @@ from dimples import DateTime
 from dimples import ID
 from dimples import ReliableMessage
 from dimples import Content
+from dimples import DocumentUtils
 
 from dimples import BaseCommandProcessor
 from dimples.common import CommonFacebook
@@ -150,13 +151,12 @@ async def search_users(keywords: str, start: int, limit: int,
     all_documents = await database.scan_documents()
     for doc in all_documents:
         # check duplicated
-        did = doc.get('did')
-        identifier = ID.parse(identifier=did)
+        identifier = DocumentUtils.get_document_id(document=doc)
         if identifier in users:
             # already exists
             continue
         # get user info
-        name = doc.get_property(name='name')
+        name = DocumentUtils.get_document_name(document=doc)
         if name is None:
             info = str(identifier)
         else:

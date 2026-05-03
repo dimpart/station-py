@@ -94,7 +94,8 @@ class StorageCommand(BaseCommand):
     #
     @property
     def identifier(self) -> ID:
-        return ID.parse(identifier=self.get('did'))
+        did = self.get('did')
+        return ID.parse(identifier=did)
 
     @identifier.setter
     def identifier(self, value: ID):

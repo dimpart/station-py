@@ -65,7 +65,7 @@ class ServerProcessorCreator(ServerContentProcessorCreator):
         if msg_type == ContentType.TEXT:
             return TextContentProcessor(facebook=self.facebook, messenger=self.messenger)
         # default
-        if msg_type == 0:
+        if msg_type == ContentType.ANY:
             return BaseContentProcessor(facebook=self.facebook, messenger=self.messenger)
         # others
         return super().create_content_processor(msg_type=msg_type)
