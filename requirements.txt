@@ -23,16 +23,16 @@ gevent     # 21.8.0
 # ipx==0.2.2
 aiou==1.1.0
 
-startrek==2.3.0
-tcp==2.3.0
-udp==2.3.0
-stun==1.0.0
-dmtp==1.0.0
+startrek==2.3.1
+tcp==2.3.1
+udp==2.3.1
+stun==1.0.1
+dmtp==1.0.1
 
-mkm==2.4.0
-dkd==2.4.0
-dimp==2.4.0
-dimsdk==2.4.0
-dimplugins==2.4.0
+# mkm==2.4.1
+# dkd==2.4.1
+# dimp==2.4.1
+# dimsdk==2.4.1
+# dimplugins==2.4.1
 
-dimples==1.6.2
+dimples==1.6.5

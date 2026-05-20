@@ -33,8 +33,6 @@
 from dimples.server.cpu import AnsCommandProcessor
 from dimples.server.cpu import ReportCommandProcessor
 
-from .handshake import ServerHandshakeProcessor
-
 from .mute import MuteCommandProcessor
 from .block import BlockCommandProcessor
 
@@ -45,9 +43,6 @@ __all__ = [
 
     'AnsCommandProcessor',
     'ReportCommandProcessor',
-
-    # 'HandshakeCommandProcessor',
-    'ServerHandshakeProcessor',
 
     'MuteCommandProcessor',
     'BlockCommandProcessor',

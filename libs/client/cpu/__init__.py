@@ -39,7 +39,7 @@ from .report import ReportCommandProcessor
 
 __all__ = [
 
-    'HandshakeCommandProcessor',
+    # 'HandshakeCommandProcessor',
     'LoginCommandProcessor',
 
     'HistoryCommandProcessor',

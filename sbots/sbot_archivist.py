@@ -31,12 +31,17 @@
     Bot as Search Engine to managing metas & documents
 """
 
+import sys
 from typing import Optional
 
 from dimples import ContentProcessor, ContentProcessorCreator
 from dimples import Facebook, Messenger
 from dimples.client.cpu import ClientContentProcessorCreator
-from dimples.utils import Log, Runner
+
+from dimples.utils import SysArgvParser
+from dimples.utils import init_logger
+from dimples.utils import Log, LogLevel
+from dimples.utils import Runner
 from dimples.utils import Path
 
 path = Path.abs(path=__file__)
@@ -48,8 +53,8 @@ from libs.common.protocol import SearchCommand, StorageCommand
 from libs.client.cpu import SearchCommandProcessor, StorageCommandProcessor
 from libs.client import ClientProcessor
 
-from sbots.shared import GlobalVariable
 from sbots.shared import create_config, start_bot
+from sbots.shared import show_help
 
 
 class ArchivistContentProcessorCreator(ClientContentProcessorCreator):
@@ -78,24 +83,41 @@ class ArchivistMessageProcessor(ClientProcessor):
 
 
 #
-# show logs
+#  show logs
 #
-Log.LEVEL = Log.DEVELOP
+LOG_LEVEL = LogLevel.DEVELOP
+LOGGER_NAME = 'archivist'
 
-
+APP_NAME = 'DIM Search Engine'
 DEFAULT_CONFIG = '/etc/dim/config.ini'
 
 
 async def async_main():
-    # create global variable
-    shared = GlobalVariable()
-    config = await create_config(app_name='DIM Search Engine', default_config=DEFAULT_CONFIG)
-    await shared.prepare(config=config)
+    #
+    #  parse cmd parameters
+    #
+    sys_argv = SysArgvParser.parse(shortopts='hf:ld:',
+                                   longopts=['help', 'config=', 'log-location', 'log-dir='])
+    if sys_argv is None:
+        show_help(app_name=APP_NAME, cmd=sys.argv[0], default_config=DEFAULT_CONFIG)
+        sys.exit(1)
+    #
+    #  init logger
+    #
+    show_location = sys_argv.has_opt(opt='log-location')
+    init_logger(name=LOGGER_NAME, level=LOG_LEVEL, show_location=show_location)
+    #
+    #  create config
+    #
+    config = await create_config(sys_argv=sys_argv, default_config=DEFAULT_CONFIG)
+    if config is None:
+        show_help(app_name=APP_NAME, cmd=sys.argv[0], default_config=DEFAULT_CONFIG)
+        sys.exit(1)
     #
     #  Create & start the bot
     #
     client = await start_bot(ans_name='archivist', processor_class=ArchivistMessageProcessor)
-    Log.warning(msg='bot stopped: %s' % client)
+    Log.warning('bot stopped: %s', client)
 
 
 def main():

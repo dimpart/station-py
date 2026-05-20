@@ -81,6 +81,7 @@
         https://github.com/dimchat/dkd-py/blob/master/dkd/protocol/types.py
 """
 
+import sys
 from typing import List
 
 from dimples import ID, ReliableMessage
@@ -93,7 +94,9 @@ from dimples.client import ClientMessageProcessor
 from dimples.client.cpu import BaseCustomizedContentHandler
 from dimples.client.cpu.app.filter import get_app_filter
 
-from dimples.utils import Log, Logging
+from dimples.utils import SysArgvParser
+from dimples.utils import init_logger
+from dimples.utils import Log, LogLevel, Logging
 from dimples.utils import Runner
 from dimples.utils import Path
 
@@ -104,6 +107,7 @@ Path.add(path=path)
 
 from sbots.shared import GlobalVariable
 from sbots.shared import create_config, start_bot
+from sbots.shared import show_help
 
 
 def _get_listeners(name: str) -> List[ID]:
@@ -155,7 +159,7 @@ class StatHandler(BaseCustomizedContentHandler, Logging):
         sender = msg.sender
         act = content.action
         if act != 'post':
-            self.error(msg='content error: %s' % content)
+            self.error('content error: %s', content)
             return await super().handle_action(content=content, msg=msg, messenger=messenger)
         mod = content.module
         if mod == 'users':
@@ -169,9 +173,9 @@ class StatHandler(BaseCustomizedContentHandler, Logging):
                 # so the sender must be a user id here
                 content['U'] = str(sender)
         else:
-            self.error(msg='unknown module: %s, action: %s' % (mod, act))
+            self.error('unknown module: %s, action: %s', mod, act)
             return await super().handle_action(content=content, msg=msg, messenger=messenger)
-        self.info(msg='redirecting content "%s" to %s ...' % (mod, listeners))
+        self.info('redirecting content "%s" to %s ...', mod, listeners)
         facebook = messenger.facebook
         assert isinstance(facebook, ClientFacebook), 'facebook error: %s' % facebook
         assert isinstance(messenger, ClientMessenger), 'messenger error: %s' % messenger
@@ -203,26 +207,45 @@ def register_customized_handlers():
 
 
 #
-# show logs
+#  show logs
 #
-Log.LEVEL = Log.DEVELOP
+LOG_LEVEL = LogLevel.DEVELOP
+LOGGER_NAME = 'monitor'
 
-
+APP_NAME = 'ServiceBot: Monitor'
 DEFAULT_CONFIG = '/etc/dim/config.ini'
 
 
 async def async_main():
-    # create global variable
-    shared = GlobalVariable()
-    config = await create_config(app_name='ServiceBot: Monitor', default_config=DEFAULT_CONFIG)
-    await shared.prepare(config=config)
-    # register handlers
+    #
+    #  parse cmd parameters
+    #
+    sys_argv = SysArgvParser.parse(shortopts='hf:ld:',
+                                   longopts=['help', 'config=', 'log-location', 'log-dir='])
+    if sys_argv is None:
+        show_help(app_name=APP_NAME, cmd=sys.argv[0], default_config=DEFAULT_CONFIG)
+        sys.exit(1)
+    #
+    #  init logger
+    #
+    show_location = sys_argv.has_opt(opt='log-location')
+    init_logger(name=LOGGER_NAME, level=LOG_LEVEL, show_location=show_location)
+    #
+    #  create config
+    #
+    config = await create_config(sys_argv=sys_argv, default_config=DEFAULT_CONFIG)
+    if config is None:
+        show_help(app_name=APP_NAME, cmd=sys.argv[0], default_config=DEFAULT_CONFIG)
+        sys.exit(1)
+    #
+    #  register handlers
+    #
     register_customized_handlers()
     #
     #  Create & start the bot
     #
     client = await start_bot(ans_name='monitor', processor_class=ClientMessageProcessor)
-    Log.warning(msg='bot stopped: %s' % client)
+    Log.warning('bot stopped: %s', client)
 
 
 def main():

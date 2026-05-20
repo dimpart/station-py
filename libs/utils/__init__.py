@@ -40,6 +40,7 @@ from dimples.utils import Singleton, Runner
 from dimples.utils import Path
 from dimples.utils import File, TextFile, JSONFile
 
+from dimples.utils import SysArgvParser
 from dimples.utils import Log, Logging
 from dimples.utils import Config
 
@@ -73,6 +74,7 @@ __all__ = [
     'Path',
     'File', 'TextFile', 'JSONFile',
 
+    'SysArgvParser',
     'Log', 'Logging',
     'Config',
 

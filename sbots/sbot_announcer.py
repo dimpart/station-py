@@ -31,6 +31,7 @@
     Bot as Push Center
 """
 
+import sys
 import time
 from typing import Optional, List
 
@@ -39,7 +40,11 @@ from dimples import ContentProcessor, ContentProcessorCreator
 from dimples import BaseCommandProcessor
 from dimples import Facebook, Messenger
 from dimples.client.cpu import ClientContentProcessorCreator
-from dimples.utils import Log, Runner
+
+from dimples.utils import SysArgvParser
+from dimples.utils import init_logger
+from dimples.utils import Log, LogLevel
+from dimples.utils import Runner
 from dimples.utils import Path
 
 path = Path.abs(path=__file__)
@@ -61,6 +66,7 @@ from libs.push import AndroidPushNotificationService
 
 from sbots.shared import GlobalVariable
 from sbots.shared import create_config, start_bot
+from sbots.shared import show_help
 
 
 class PushCommandProcessor(BaseCommandProcessor, Logging):
@@ -74,10 +80,10 @@ class PushCommandProcessor(BaseCommandProcessor, Logging):
         # check expired
         expired = time.time() - self.MESSAGE_EXPIRES
         if 0 < r_msg.time < expired:
-            self.warning(msg='drop expired push items: %s' % items)
+            self.warning('drop expired push items: %s', items)
             return []
         else:
-            self.info(msg='push %d item(s).' % len(items))
+            self.info('push %d item(s).', len(items))
         # add push task
         pnc = PushNotificationClient()
         pnc.add_task(items=items, msg_time=r_msg.time)
@@ -114,7 +120,7 @@ def create_apns(config: Config, database: Database):
     credentials = config.get_string(section='announcer', option='apns_credentials')
     use_sandbox = config.get_boolean(section='announcer', option='apns_use_sandbox')
     topic = config.get_string(section='announcer', option='apns_topic')
-    print('APNs: credentials=%s, use_sandbox=%s, topic=%s' % (credentials, use_sandbox, topic))
+    Log.warning('APNs: credentials=%s, use_sandbox=%s, topic=%s', credentials, use_sandbox, topic)
     if credentials is not None and len(credentials) > 0:
         apple = ApplePushNotificationService(credentials=credentials,
                                              use_sandbox=use_sandbox)
@@ -123,35 +129,53 @@ def create_apns(config: Config, database: Database):
         pnc.apple_pns = apple
     # 2. add push service: FCM
     credentials = config.get_string(section='announcer', option='fcm_credentials')
-    print('APNs: credentials=%s' % credentials)
+    Log.warning('APNs: credentials=%s', credentials)
     if credentials is not None and len(credentials) > 0:
         android = AndroidPushNotificationService(cert=credentials)
         pnc.android_pns = android
 
 
 #
-# show logs
+#  show logs
 #
-Log.LEVEL = Log.DEVELOP
+LOG_LEVEL = LogLevel.DEVELOP
+LOGGER_NAME = 'announcer'
 
-
+APP_NAME = 'DIM Push Center'
 DEFAULT_CONFIG = '/etc/dim/config.ini'
 
 
 async def async_main():
-    # create global variable
-    shared = GlobalVariable()
-    config = await create_config(app_name='DIM Push Center', default_config=DEFAULT_CONFIG)
-    await shared.prepare(config=config)
+    #
+    #  parse cmd parameters
+    #
+    sys_argv = SysArgvParser.parse(shortopts='hf:ld:',
+                                   longopts=['help', 'config=', 'log-location', 'log-dir='])
+    if sys_argv is None:
+        show_help(app_name=APP_NAME, cmd=sys.argv[0], default_config=DEFAULT_CONFIG)
+        sys.exit(1)
+    #
+    #  init logger
+    #
+    show_location = sys_argv.has_opt(opt='log-location')
+    init_logger(name=LOGGER_NAME, level=LOG_LEVEL, show_location=show_location)
+    #
+    #  create config
+    #
+    config = await create_config(sys_argv=sys_argv, default_config=DEFAULT_CONFIG)
+    if config is None:
+        show_help(app_name=APP_NAME, cmd=sys.argv[0], default_config=DEFAULT_CONFIG)
+        sys.exit(1)
     #
     #  Create push services
     #
+    shared = GlobalVariable()
     create_apns(config=shared.config, database=shared.database)
     #
     #  Create & start the bot
     #
     client = await start_bot(ans_name='announcer', processor_class=BotMessageProcessor)
-    Log.warning(msg='bot stopped: %s' % client)
+    Log.warning('bot stopped: %s', client)
 
 
 def main():

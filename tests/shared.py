@@ -33,7 +33,9 @@ from dimples.common import AccountDBI, MessageDBI, SessionDBI
 from dimples.group import SharedGroupManager
 from dimples.client import ClientChecker
 
-from libs.utils import Singleton, Log
+from libs.utils import SysArgvParser
+from libs.utils import Singleton
+from libs.utils import Log, Path
 from libs.utils import Config
 from libs.common import ExtensionLoader, LibraryLoader
 from libs.common import CommonFacebook
@@ -173,3 +175,25 @@ async def create_messenger(shared: GlobalVariable, facebook: CommonFacebook) -> 
     # 5. set weak reference to messenger
     session.messenger = messenger
     return messenger
+
+
+async def create_config(sys_argv: SysArgvParser, default_config: str) -> Optional[Config]:
+    """ load config """
+    #
+    #  get INI file
+    #
+    ini_file = sys_argv.get_opt(opt='config')
+    if ini_file is None:
+        ini_file = default_config
+    if not await Path.exists(path=ini_file):
+        Log.error('!!! config file not exists: %s', ini_file)
+        return None
+    shared = GlobalVariable()
+    #
+    #  load config
+    #
+    config = Config()
+    await config.load(path=ini_file)
+    Log.warning('>>> config loaded: %s => %s', ini_file, config)
+    await shared.prepare(config=config)
+    return config

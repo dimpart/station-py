@@ -70,7 +70,7 @@ class Contact:
                 reversed_locations.append(self.__locations[pos])
         return reversed_locations
 
-    def get_location(self, address: tuple) -> Optional[LocationValue]:
+    def get_location(self, address: SocketAddress) -> Optional[LocationValue]:
         """ Get location by (IP, port) """
         with self.__locations_lock:
             pos = len(self.__locations)
@@ -238,7 +238,7 @@ class Contact:
             return cls.is_address_expired(address=s, hub=hub) and cls.is_address_expired(address=m, hub=hub)
 
     @classmethod
-    def is_address_expired(cls, address: Optional[tuple], hub: Hub) -> bool:
+    def is_address_expired(cls, address: Optional[SocketAddress], hub: Hub) -> bool:
         if address is None:
             return True
         elif isinstance(hub, ContactHub):

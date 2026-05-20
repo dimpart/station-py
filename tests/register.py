@@ -31,14 +31,15 @@
     Generate Account information for DIM User/Station
 """
 
-import getopt
 import sys
 
 from dimples import ID
 
-from dimples.utils import Path
-from dimples.utils import Log
+from dimples.utils import SysArgvParser
+from dimples.utils import init_logger
+from dimples.utils import LogLevel
 from dimples.utils import Runner
+from dimples.utils import Path
 
 from dimples.register.shared import generate
 from dimples.register.shared import modify
@@ -48,16 +49,17 @@ path = Path.dir(path=path)
 path = Path.dir(path=path)
 Path.add(path=path)
 
-from libs.utils import Config
-
 from tests.shared import GlobalVariable
+from tests.shared import create_config
 
 
 #
-# show logs
+#  show logs
 #
-Log.LEVEL = Log.DEVELOP
+LOG_LEVEL = LogLevel.DEVELOP
+LOGGER_NAME = 'register'
 
+APP_NAME = 'DIM account generate/modify'
 
 DEFAULT_CONFIG = '/etc/dim/config.ini'
 
@@ -65,7 +67,7 @@ DEFAULT_CONFIG = '/etc/dim/config.ini'
 def show_help():
     cmd = sys.argv[0]
     print('')
-    print('    DIM account generate/modify')
+    print('    %s' % APP_NAME)
     print('')
     print('usages:')
     print('    %s [--config=<FILE>] generate' % cmd)
@@ -82,50 +84,39 @@ def show_help():
     print('')
 
 
-async def create_config(opts) -> Config:
-    # check options
-    ini_file = None
-    for opt, arg in opts:
-        if opt == '--config':
-            ini_file = arg
-        else:
-            show_help()
-            sys.exit(0)
-    # check config file path
-    if ini_file is None:
-        ini_file = DEFAULT_CONFIG
-    if not await Path.exists(path=ini_file):
-        show_help()
-        print('')
-        print('!!! config file not exists: %s' % ini_file)
-        print('')
-        sys.exit(0)
-    # loading config
-    config = Config()
-    await config.load(path=ini_file)
-    print('[DB] init with config: %s => %s' % (ini_file, config))
-    return config
-
-
 async def async_main():
-    try:
-        opts, args = getopt.getopt(args=sys.argv[1:],
-                                   shortopts='hf:',
-                                   longopts=['help', 'config='])
-    except getopt.GetoptError:
+    #
+    #  parse cmd parameters
+    #
+    sys_argv = SysArgvParser.parse(shortopts='hf:ld:',
+                                   longopts=['help', 'config=', 'log-location', 'log-dir='])
+    if sys_argv is None:
         show_help()
         sys.exit(1)
-    # create global variable
+    #
+    #  init logger
+    #
+    show_location = sys_argv.has_opt(opt='log-location')
+    init_logger(name=LOGGER_NAME, level=LOG_LEVEL, show_location=show_location)
+    #
+    #  create config
+    #
+    config = await create_config(sys_argv=sys_argv, default_config=DEFAULT_CONFIG)
+    if config is None:
+        show_help()
+        sys.exit(1)
+    #
+    #  Check Actions
+    #
     shared = GlobalVariable()
-    config = await create_config(opts=opts)
-    await shared.prepare(config=config)
-    # check actions
+    database = shared.adb
+    args = sys_argv.args
     if len(args) == 1 and args[0] == 'generate':
-        await generate(database=shared.adb)
+        await generate(database=database)
     elif len(args) == 2 and args[0] == 'modify':
         identifier = ID.parse(identifier=args[1])
         assert identifier is not None, 'ID error: %s' % args[1]
-        await modify(identifier=identifier, database=shared.adb)
+        await modify(identifier=identifier, database=database)
     else:
         show_help()
 

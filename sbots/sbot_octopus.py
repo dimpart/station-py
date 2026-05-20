@@ -31,7 +31,11 @@
     Bot for bridging neighbor stations
 """
 
-from dimples.utils import Log
+import sys
+
+from dimples.utils import SysArgvParser
+from dimples.utils import init_logger
+from dimples.utils import Log, LogLevel
 from dimples.utils import Path
 from dimples.utils import Runner
 from dimples.utils import DateTime
@@ -53,6 +57,7 @@ Path.add(path=path)
 from sbots.shared import GlobalVariable
 from sbots.shared import create_config
 from sbots.shared import refresh_neighbors
+from sbots.shared import show_help
 
 
 class InnerClient(Terminal):
@@ -123,23 +128,42 @@ class OctopusClient(Octopus):
 
 
 #
-# show logs
+#  show logs
 #
-Log.LEVEL = Log.DEVELOP
+LOG_LEVEL = LogLevel.DEVELOP
+LOGGER_NAME = 'bridge'
 
+APP_NAME = 'DIM Network Edge'
 
 DEFAULT_CONFIG = '/etc/dim/edge.ini'
 
 
 async def async_main():
-    # create global variable
-    shared = GlobalVariable()
-    config = await create_config(app_name='DIM Network Edge', default_config=DEFAULT_CONFIG)
-    await shared.prepare(config=config)
     #
-    #  Login
+    #  parse cmd parameters
+    #
+    sys_argv = SysArgvParser.parse(shortopts='hf:ld:',
+                                   longopts=['help', 'config=', 'log-location', 'log-dir='])
+    if sys_argv is None:
+        show_help(app_name=APP_NAME, cmd=sys.argv[0], default_config=DEFAULT_CONFIG)
+        sys.exit(1)
+    #
+    #  init logger
+    #
+    show_location = sys_argv.has_opt(opt='log-location')
+    init_logger(name=LOGGER_NAME, level=LOG_LEVEL, show_location=show_location)
+    #
+    #  create config
+    #
+    config = await create_config(sys_argv=sys_argv, default_config=DEFAULT_CONFIG)
+    if config is None:
+        show_help(app_name=APP_NAME, cmd=sys.argv[0], default_config=DEFAULT_CONFIG)
+        sys.exit(1)
+    #
+    #  login
     #
     sid = config.station_id
+    shared = GlobalVariable()
     await shared.login(current_user=sid)
     #
     #  Station host & port
@@ -153,7 +177,7 @@ async def async_main():
     #
     octopus = OctopusClient(database=shared.sdb, local_host=host, local_port=port)
     await octopus.run()
-    Log.warning(msg='octopus stopped: %s' % octopus)
+    Log.warning('octopus stopped: %s', octopus)
 
 
 def main():

@@ -32,7 +32,6 @@ from typing import Optional
 
 from dimples import ContentType
 from dimples import ReportCommand
-from dimples import HandshakeCommand
 from dimples import MuteCommand, BlockCommand
 
 from dimples import ContentProcessor
@@ -44,7 +43,6 @@ from dimples import Facebook, Messenger
 from dimples.server import ServerMessageProcessor
 from dimples.server.cpu import ServerContentProcessorCreator
 
-from .cpu import ServerHandshakeProcessor
 from .cpu import ReportCommandProcessor
 from .cpu import MuteCommandProcessor, BlockCommandProcessor
 from .cpu import TextContentProcessor
@@ -72,9 +70,6 @@ class ServerProcessorCreator(ServerContentProcessorCreator):
 
     # Override
     def create_command_processor(self, msg_type: str, cmd: str) -> Optional[ContentProcessor]:
-        # handshake
-        if cmd == HandshakeCommand.HANDSHAKE:
-            return ServerHandshakeProcessor(facebook=self.facebook, messenger=self.messenger)
         # mute
         if cmd == MuteCommand.MUTE:
             return MuteCommandProcessor(facebook=self.facebook, messenger=self.messenger)

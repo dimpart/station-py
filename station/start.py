@@ -31,11 +31,14 @@
     DIM network server node
 """
 
+import sys
 from socketserver import ThreadingTCPServer
 
-from dimples.utils import Log
-from dimples.utils import Path
+from dimples.utils import SysArgvParser
+from dimples.utils import init_logger
+from dimples.utils import Log, LogLevel
 from dimples.utils import Runner
+from dimples.utils import Path
 
 path = Path.abs(path=__file__)
 path = Path.dir(path=path)
@@ -50,23 +53,56 @@ from station.handler import RequestHandler
 
 
 #
-# show logs
+#  show logs
 #
-Log.LEVEL = Log.DEVELOP
+LOG_LEVEL = LogLevel.DEVELOP
+LOGGER_NAME = 'dims'
 
-
+APP_NAME = 'DIM Network Station'
 DEFAULT_CONFIG = '/etc/dim/station.ini'
 
 
+def show_help():
+    cmd = sys.argv[0]
+    print('')
+    print('    %s' % APP_NAME)
+    print('')
+    print('usages:')
+    print('    %s [--config=<FILE>]' % cmd)
+    print('    %s [-h|--help]' % cmd)
+    print('')
+    print('optional arguments:')
+    print('    --config        config file path (default: "%s")' % DEFAULT_CONFIG)
+    print('    --help, -h      show this help message and exit')
+    print('')
+
+
 async def async_main():
-    # create global variable
-    shared = GlobalVariable()
-    config = await create_config(app_name='DIM Network Station', default_config=DEFAULT_CONFIG)
-    await shared.prepare(config=config)
     #
-    #  Login
+    #  parse cmd parameters
+    #
+    sys_argv = SysArgvParser.parse(shortopts='hf:ld:',
+                                   longopts=['help', 'config=', 'log-location', 'log-dir='])
+    if sys_argv is None:
+        show_help()
+        sys.exit(1)
+    #
+    #  init logger
+    #
+    show_location = sys_argv.has_opt(opt='log-location')
+    init_logger(name=LOGGER_NAME, level=LOG_LEVEL, show_location=show_location)
+    #
+    #  create config
+    #
+    config = await create_config(sys_argv=sys_argv, default_config=DEFAULT_CONFIG)
+    if config is None:
+        show_help()
+        sys.exit(1)
+    #
+    #  login
     #
     sid = config.station_id
+    shared = GlobalVariable()
     await shared.login(current_user=sid)
     #
     #  Station host & port
@@ -79,7 +115,7 @@ async def async_main():
     #
     #  Start UDP Server
     #
-    Log.info('>>> UDP server %s starting ...' % str(server_address))
+    Log.info('>>> UDP server %s starting ...', server_address)
     g_udp_server = UDPServer(host=server_address[0], port=server_address[1])
     await g_udp_server.start()
     #
@@ -90,16 +126,16 @@ async def async_main():
         server = ThreadingTCPServer(server_address=server_address,
                                     RequestHandlerClass=RequestHandler,
                                     bind_and_activate=False)
-        Log.info(msg='>>> TCP server %s starting...' % str(server_address))
+        Log.info('>>> TCP server %s starting...', server_address)
         server.allow_reuse_address = True
         server.server_bind()
         server.server_activate()
         server.serve_forever()
     except KeyboardInterrupt as ex:
-        Log.info(msg='~~~~~~~~ %s' % ex)
+        Log.info('~~~~~~~~ %s', ex)
     finally:
         g_udp_server.stop()
-        Log.info(msg='======== station shutdown!')
+        Log.info('======== station shutdown!')
 
 
 def main():

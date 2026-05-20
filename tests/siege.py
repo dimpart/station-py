@@ -30,7 +30,6 @@
 
 """
 
-import getopt
 import multiprocessing
 import sys
 import time
@@ -44,6 +43,9 @@ from dimples import EntityType, ID
 from dimples import Station
 from dimples.common import SessionDBI
 
+from dimples.utils import SysArgvParser
+from dimples.utils import init_logger
+from dimples.utils import Log, LogLevel, Logging
 from dimples.utils import Path
 
 path = Path.abs(path=__file__)
@@ -51,15 +53,14 @@ path = Path.dir(path=path)
 path = Path.dir(path=path)
 Path.add(path=path)
 
-from libs.utils import Log, Logging
 from libs.utils import Runner
-from libs.utils import Config
 from libs.database import Storage
 from libs.client import Terminal
 from libs.client import ClientFacebook
 from libs.client import ClientSession, ClientMessenger, ClientProcessor, ClientPacker
 
 from tests.shared import GlobalVariable
+from tests.shared import create_config
 
 
 class Soldier(Terminal, Logging):
@@ -71,7 +72,7 @@ class Soldier(Terminal, Logging):
         self.__user: Optional[ID] = None
 
     def __del__(self):
-        self.warning(msg='soldier down: %s' % self.user)
+        self.warning('soldier down: %s', self.user)
 
     def __str__(self) -> str:
         mod = self.__module__
@@ -127,7 +128,7 @@ class Soldier(Terminal, Logging):
         if session is None:
             assert False, 'session not found'
         else:
-            self.info(msg='setting session ID: %s' % user)
+            self.info('setting session ID: %s', user)
             session.set_identifier(identifier=user)
         #
         #  waiting to retreat
@@ -163,7 +164,7 @@ class Sergeant(Logging):
         shared = GlobalVariable()
         threads = []
         for i in range(self.UNITS):
-            self.warning(msg='**** thread starts (%d + %d): %s' % (self.__offset, i, cid))
+            self.warning('**** thread starts (%d + %d): %s', self.__offset, i, cid)
             soldier = Soldier(facebook=shared.facebook, database=shared.sdb)
             soldier.user = cid
             thr = Runner.async_thread(coro=soldier.attack(host=self.HOST, port=self.PORT))
@@ -174,8 +175,8 @@ class Sergeant(Logging):
             try:
                 thr.join()
             except KeyboardInterrupt as error:
-                self.error(msg='thread error: %s, %s' % (cid, error))
-            self.warning(msg='**** thread stopped: %s' % thr)
+                self.error('thread error: %s, %s', cid, error)
+            self.warning('**** thread stopped: %s', thr)
 
     def attack(self) -> multiprocessing.Process:
         proc = multiprocessing.Process(target=self.run)
@@ -193,7 +194,7 @@ class Sergeant(Logging):
         meta = Meta.generate(version=MetaType.MKM, private_key=pri_key, seed=seed)
         # 3. generate ID
         identifier = ID.generate(meta=meta, network=EntityType.BOT)
-        Log.info(msg='NewID: %s\n' % identifier)
+        Log.info('NewID: %s\n', identifier)
         # 4. save private key & meta
         shared = GlobalVariable()
         database = shared.adb
@@ -228,7 +229,7 @@ class Colonel(Runner, Logging):
             array = text.splitlines()
             for item in array:
                 if len(item) < 45 or len(item) > 55:
-                    self.error(msg='*** ID error: %s' % item)
+                    self.error('*** ID error: %s', item)
                     continue
                 cid = ID.parse(identifier=item)
                 if cid is not None:
@@ -250,7 +251,7 @@ class Colonel(Runner, Logging):
         processes = []
         for i in range(self.TROOPS):
             soldier = self.__soldiers[i]
-            self.warning(msg='**** process starts [%d]: %s' % (i, soldier))
+            self.warning('**** process starts [%d]: %s', i, soldier)
             sergeant = Sergeant(client_id=soldier, offset=self.__offset)
             proc = sergeant.attack()
             processes.append(proc)
@@ -260,8 +261,8 @@ class Colonel(Runner, Logging):
             try:
                 proc.join()
             except KeyboardInterrupt as error:
-                self.error(msg='process error: %s' % error)
-            self.warning(msg='**** process stopped: %s' % proc)
+                self.error('process error: %s', error)
+            self.warning('**** process stopped: %s', proc)
         # return False to have a rest
         return False
 
@@ -280,60 +281,13 @@ class Colonel(Runner, Logging):
         print('====================================================')
 
 
-def show_help(app_name: str, default_config: str):
-    cmd = sys.argv[0]
-    print('')
-    print('    %s' % app_name)
-    print('')
-    print('usages:')
-    print('    %s [--config=<FILE>]' % cmd)
-    print('    %s [-h|--help]' % cmd)
-    print('')
-    print('optional arguments:')
-    print('    --config        config file path (default: "%s")' % default_config)
-    print('    --help, -h      show this help message and exit')
-    print('')
-
-
-async def create_config(app_name: str, default_config: str) -> Config:
-    """ load config """
-    try:
-        opts, args = getopt.getopt(args=sys.argv[1:],
-                                   shortopts='hf:',
-                                   longopts=['help', 'config='])
-    except getopt.GetoptError:
-        show_help(app_name=app_name, default_config=default_config)
-        sys.exit(1)
-    # check options
-    ini_file = None
-    for opt, arg in opts:
-        if opt == '--config':
-            ini_file = arg
-        else:
-            show_help(app_name=app_name, default_config=default_config)
-            sys.exit(0)
-    # check config filepath
-    if ini_file is None:
-        ini_file = default_config
-    if not await Path.exists(path=ini_file):
-        show_help(app_name=app_name, default_config=default_config)
-        print('')
-        print('!!! config file not exists: %s' % ini_file)
-        print('')
-        sys.exit(0)
-    # load config from file
-    config = Config()
-    await config.load(path=ini_file)
-    print('>>> config loaded: %s => %s' % (ini_file, config))
-    return config
-
-
 #
-# show logs
+#  show logs
 #
-Log.LEVEL = Log.DEVELOP
-Log.LEVEL = Log.RELEASE
+LOG_LEVEL = LogLevel.DEVELOP
+LOGGER_NAME = 'siege'
 
+APP_NAME = 'Siege'
 
 DEFAULT_CONFIG = '/etc/dim/config.ini'
 
@@ -361,19 +315,50 @@ Sergeant.HOST = test_station[0]
 Sergeant.PORT = 9394
 
 
+def show_help():
+    cmd = sys.argv[0]
+    print('')
+    print('    %s' % APP_NAME)
+    print('')
+    print('usages:')
+    print('    %s [--config=<FILE>]' % cmd)
+    print('    %s [-h|--help]' % cmd)
+    print('')
+    print('optional arguments:')
+    print('    --config        config file path (default: "%s")' % DEFAULT_CONFIG)
+    print('    --help, -h      show this help message and exit')
+    print('')
+
+
 async def async_main():
-    # create global variable
-    shared = GlobalVariable()
-    config = await create_config(app_name='Siege', default_config=DEFAULT_CONFIG)
-    await shared.prepare(config=config)
+    #
+    #  parse cmd parameters
+    #
+    sys_argv = SysArgvParser.parse(shortopts='hf:ld:',
+                                   longopts=['help', 'config=', 'log-location', 'log-dir='])
+    if sys_argv is None:
+        show_help()
+        sys.exit(1)
+    #
+    #  init logger
+    #
+    show_location = sys_argv.has_opt(opt='log-location')
+    init_logger(name=LOGGER_NAME, level=LOG_LEVEL, show_location=show_location)
+    #
+    #  create config
+    #
+    config = await create_config(sys_argv=sys_argv, default_config=DEFAULT_CONFIG)
+    if config is None:
+        show_help()
+        sys.exit(1)
     #
     #  Update config
     #
     station = config.get_section(section='station')
-    Log.info(msg='**** Start testing %s ...' % station)
+    Log.info('**** Start testing %s ...', station)
     client = Colonel()
     await client.run()
-    Log.warning(msg='Mission accomplished')
+    Log.warning('Mission accomplished')
 
 
 def main():

@@ -23,8 +23,6 @@
 # SOFTWARE.
 # ==============================================================================
 
-import getopt
-import sys
 from typing import Optional
 
 from dimples import ID
@@ -34,6 +32,7 @@ from dimples import AccountDBI, MessageDBI, SessionDBI
 from dimples.common import ProviderInfo
 from dimples.group import SharedGroupManager
 
+from libs.utils import SysArgvParser
 from libs.utils import Path, Log
 from libs.utils import Singleton
 from libs.utils import Config
@@ -173,7 +172,7 @@ class GlobalVariable:
         msg_keys = await facebook.private_keys_for_decryption(identifier=current_user)
         assert sign_key is not None, 'failed to get sign key for current user: %s' % current_user
         assert len(msg_keys) > 0, 'failed to get msg keys: %s' % current_user
-        Log.info(msg='set current user: %s' % current_user)
+        Log.info('set current user: %s', current_user)
         user = await facebook.get_user(identifier=current_user)
         assert user is not None, 'failed to get current user: %s' % current_user
         docs = await user.documents
@@ -225,51 +224,25 @@ def create_messenger(facebook: CommonFacebook, database: MessageDBI,
     return messenger
 
 
-def show_help(app_name: str, default_config: str):
-    cmd = sys.argv[0]
-    print('')
-    print('    %s' % app_name)
-    print('')
-    print('usages:')
-    print('    %s [--config=<FILE>]' % cmd)
-    print('    %s [-h|--help]' % cmd)
-    print('')
-    print('optional arguments:')
-    print('    --config        config file path (default: "%s")' % default_config)
-    print('    --help, -h      show this help message and exit')
-    print('')
-
-
-async def create_config(app_name: str, default_config: str) -> Config:
+async def create_config(sys_argv: SysArgvParser, default_config: str) -> Optional[Config]:
     """ load config """
-    try:
-        opts, args = getopt.getopt(args=sys.argv[1:],
-                                   shortopts='hf:',
-                                   longopts=['help', 'config='])
-    except getopt.GetoptError:
-        show_help(app_name=app_name, default_config=default_config)
-        sys.exit(1)
-    # check options
-    ini_file = None
-    for opt, arg in opts:
-        if opt == '--config':
-            ini_file = arg
-        else:
-            show_help(app_name=app_name, default_config=default_config)
-            sys.exit(0)
-    # check config file path
+    #
+    #  get INI file
+    #
+    ini_file = sys_argv.get_opt(opt='config')
     if ini_file is None:
         ini_file = default_config
     if not await Path.exists(path=ini_file):
-        show_help(app_name=app_name, default_config=default_config)
-        print('')
-        print('!!! config file not exists: %s' % ini_file)
-        print('')
-        sys.exit(0)
-    # load config from file
+        Log.error('!!! config file not exists: %s', ini_file)
+        return None
+    shared = GlobalVariable()
+    #
+    #  load config
+    #
     config = Config()
     await config.load(path=ini_file)
-    print('>>> config loaded: %s => %s' % (ini_file, config))
+    Log.warning('>>> config loaded: %s => %s', ini_file, config)
+    await shared.prepare(config=config)
     return config
 
 
@@ -278,7 +251,7 @@ async def refresh_neighbors(config: Config, database: SessionDBI):
     provider = ProviderInfo.GSP
     neighbors = config.neighbors
     if len(neighbors) > 0:
-        Log.info(msg='[DB] checking %d neighbor(s): %s' % (len(neighbors), provider))
+        Log.info('[DB] checking %d neighbor(s): %s', len(neighbors), provider)
         # await sdb.remove_stations(provider=provider)
         # 1. remove vanished neighbors
         old_stations = await database.all_stations(provider=provider)
@@ -289,7 +262,7 @@ async def refresh_neighbors(config: Config, database: SessionDBI):
                     found = True
                     break
             if not found:
-                Log.warning(msg='[DB] removing neighbor station: %s' % old)
+                Log.warning('[DB] removing neighbor station: %s', old)
                 await database.remove_station(host=old.host, port=old.port, provider=provider)
         # 2. add new neighbors
         for node in neighbors:
@@ -299,9 +272,9 @@ async def refresh_neighbors(config: Config, database: SessionDBI):
                     found = True
                     break
             if found:
-                Log.info(msg='[DB] neighbor node exists: %s' % node)
+                Log.info('[DB] neighbor node exists: %s', node)
             else:
-                Log.info(msg='[DB] adding neighbor node: %s' % node)
+                Log.info('[DB] adding neighbor node: %s', node)
                 await database.add_station(identifier=None, host=node.host, port=node.port, provider=provider)
     # OK
     return neighbors
