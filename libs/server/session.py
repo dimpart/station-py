@@ -56,7 +56,7 @@ class ServerSession(SuperSession):
                 A random string generated when session initialized.
                 It's used in handshaking for authentication.
 
-        'ID' - Remote User ID
+        'did' - Remote User ID
                 It will be set after handshake accepted.
                 So we can trust all messages from this sender after that.
 
@@ -81,7 +81,7 @@ class ServerSession(SuperSession):
             coro = session_change_active(session=self, active=active)
             Runner.async_task(coro=coro)
             identifier = self.identifier
-            self.info(msg='user active changed: %s, %s' % (identifier, active))
+            self.info('user active changed: %s, %s', identifier, active)
             if identifier is not None:
                 if when is None:
                     when = DateTime.now()
@@ -104,7 +104,7 @@ async def session_change_id(session: ServerSession, new_id: ID, old_id: Optional
         await db.remove_socket_address(identifier=old_id, address=remote)
     if new_id is not None:  # and session.active:
         # store socket address for new user
-        Log.info(msg='store socket address for new user: %s, %s' % (new_id, remote))
+        Log.info('store socket address for new user: %s, %s', new_id, remote)
         return await db.add_socket_address(identifier=new_id, address=remote)
 
 
@@ -118,7 +118,7 @@ async def session_change_active(session: ServerSession, active: bool):
     assert isinstance(db, Database), 'database error: %s' % db
     if active:
         # store socket address for this user
-        Log.info(msg='store socket address for this user: %s, %s' % (identifier, remote))
+        Log.info('store socket address for this user: %s, %s', identifier, remote)
         return await db.add_socket_address(identifier=identifier, address=remote)
     else:
         # remove socket address for this user

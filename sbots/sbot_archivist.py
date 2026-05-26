@@ -86,9 +86,11 @@ class ArchivistMessageProcessor(ClientProcessor):
 #  show logs
 #
 LOG_LEVEL = LogLevel.DEVELOP
-LOGGER_NAME = 'archivist'
+
+BOT_NAME = 'archivist'
 
 APP_NAME = 'DIM Search Engine'
+
 DEFAULT_CONFIG = '/etc/dim/config.ini'
 
 
@@ -105,7 +107,7 @@ async def async_main():
     #  init logger
     #
     show_location = sys_argv.has_opt(opt='log-location')
-    init_logger(name=LOGGER_NAME, level=LOG_LEVEL, show_location=show_location)
+    init_logger(name=BOT_NAME, level=LOG_LEVEL, show_location=show_location)
     #
     #  create config
     #
@@ -116,7 +118,7 @@ async def async_main():
     #
     #  Create & start the bot
     #
-    client = await start_bot(ans_name='archivist', processor_class=ArchivistMessageProcessor)
+    client = await start_bot(ans_name=BOT_NAME, processor_class=ArchivistMessageProcessor)
     Log.warning('bot stopped: %s', client)
 
 

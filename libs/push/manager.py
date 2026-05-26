@@ -24,7 +24,9 @@ class PushNotificationService(ABC):
 
     @abstractmethod
     async def push_notification(self, aps: PushInfo, device: DeviceInfo, receiver: ID) -> bool:
-        raise NotImplemented
+        raise NotImplementedError(
+            f'Not implemented: {type(self).__module__}.{type(self).__name__}.push_notification()'
+        )
 
 
 class PushTask:
@@ -119,25 +121,25 @@ class PushNotificationClient(Runner, Logging):
             return False
         array = task.items
         if task.is_expired:
-            self.warning(msg='task expired, drop %d item(s).' % len(array))
+            self.warning('task expired, drop %d item(s).', len(array))
             array = []
         # push items
         for item in array:
             try:
                 await self.__push(aps=item.info, receiver=item.receiver)
             except Exception as error:
-                self.error(msg='push error: %s, item: %s' % (error, item))
+                self.error('push error: %s, item: %s', error, item)
         return True
 
     async def __push(self, aps: PushInfo, receiver: ID) -> bool:
         devices = await self.delegate.get_devices(identifier=receiver)
         if devices is None or len(devices) == 0:
-            self.warning('cannot get device token for user %s' % receiver)
+            self.warning('cannot get device token for user %s', receiver)
             return False
         for item in devices:
             platform = item.platform
             if platform is None:
-                self.error(msg='device error: %s => %s' % (item, receiver))
+                self.error('device error: %s => %s', item, receiver)
                 continue
             platform = platform.lower()
             if platform == 'ios':
@@ -145,12 +147,12 @@ class PushNotificationClient(Runner, Logging):
             elif platform == 'android':
                 pns = self.android_pns
             else:
-                self.error(msg='platform error: %s, %s => %s' % (platform, item, receiver))
+                self.error('platform error: %s, %s => %s', platform, item, receiver)
                 continue
             if pns is None:
-                self.error(msg='push notification service not found: %s' % platform)
+                self.error('push notification service not found: %s', platform)
             elif await pns.push_notification(aps=aps, device=item, receiver=receiver):
-                self.info(msg='push notification success: %s' % receiver)
+                self.info('push notification success: %s', receiver)
                 return True
             else:
-                self.error(msg='push notification error: %s' % receiver)
+                self.error('push notification error: %s', receiver)

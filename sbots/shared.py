@@ -136,7 +136,7 @@ class GlobalVariable:
         msg_keys = await facebook.private_keys_for_decryption(identifier=current_user)
         assert sign_key is not None, 'failed to get sign key for current user: %s' % current_user
         assert len(msg_keys) > 0, 'failed to get msg keys: %s' % current_user
-        Log.info('set current user: %s', current_user)
+        Log.warning('set current user: %s', current_user)
         user = await facebook.get_user(identifier=current_user)
         assert user is not None, 'failed to get current user: %s' % current_user
         docs = await user.documents

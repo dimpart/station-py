@@ -41,7 +41,9 @@ class Processor(ABC):
 
         :return: False on nothing to do
         """
-        raise NotImplemented
+        raise NotImplementedError(
+            f'Not implemented: {type(self).__module__}.{type(self).__name__}.process()'
+        )
 
 
 class Handler(ABC):
@@ -49,17 +51,23 @@ class Handler(ABC):
     @abstractmethod
     def setup(self):
         """ Prepare for Handling """
-        raise NotImplemented
+        raise NotImplementedError(
+            f'Not implemented: {type(self).__module__}.{type(self).__name__}.setup()'
+        )
 
     @abstractmethod
     def handle(self):
         """ Handling run loop """
-        raise NotImplemented
+        raise NotImplementedError(
+            f'Not implemented: {type(self).__module__}.{type(self).__name__}.handle()'
+        )
 
     @abstractmethod
     def finish(self):
         """ Cleanup after handled """
-        raise NotImplemented
+        raise NotImplementedError(
+            f'Not implemented: {type(self).__module__}.{type(self).__name__}.finish()'
+        )
 
 
 class Runnable(ABC):
@@ -67,7 +75,9 @@ class Runnable(ABC):
     @abstractmethod
     def run(self):
         """ Run in an async task """
-        raise NotImplemented
+        raise NotImplementedError(
+            f'Not implemented: {type(self).__module__}.{type(self).__name__}.run()'
+        )
 
 
 # noinspection PyAbstractClass
@@ -97,7 +107,7 @@ class Runner(Runnable, Handler, Processor, ABC):
 
     def __init__(self, interval: float):
         super().__init__()
-        assert interval > 0, 'interval error: %s' % interval
+        assert interval > 0, f'interval error: {interval}'
         self.__interval = interval
         self.__running = False
 

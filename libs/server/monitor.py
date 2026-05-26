@@ -54,7 +54,9 @@ class Recorder(ABC):
     @abstractmethod
     def extract(self) -> Union[List, Dict]:
         """ get and clear records """
-        raise NotImplemented
+        raise NotImplementedError(
+            f'Not implemented: {type(self).__module__}.{type(self).__name__}.extract()'
+        )
 
 
 class Event(ABC):
@@ -62,7 +64,9 @@ class Event(ABC):
     @abstractmethod
     async def handle(self, recorder: Recorder):
         """ handle the event """
-        raise NotImplemented
+        raise NotImplementedError(
+            f'Not implemented: {type(self).__module__}.{type(self).__name__}.handle()'
+        )
 
 
 @Singleton
@@ -124,7 +128,7 @@ class Monitor(Runner, Logging):
     async def process(self) -> bool:
         emitter = self.emitter
         if emitter is None:
-            self.warning(msg='emitter not ready yet')
+            self.warning('emitter not ready yet')
             return False
         # 1. check to flush data
         now = time.time()
@@ -134,7 +138,7 @@ class Monitor(Runner, Logging):
             try:
                 await self.__send(users=users, stats=stats)
             except Exception as e:
-                self.error(msg='failed to send data: %s' % e)
+                self.error('failed to send data: %s', e)
             # flush next time
             self.__next_time = now + self.INTERVAL
         # 2. check for next event
@@ -145,7 +149,7 @@ class Monitor(Runner, Logging):
         try:
             await self.__handle(event=event)
         except Exception as e:
-            self.error(msg='handle event error: %s' % e)
+            self.error('handle event error: %s', e)
             traceback.print_exc()
         return True
 
@@ -155,14 +159,14 @@ class Monitor(Runner, Logging):
         elif isinstance(event, MessageEvent):
             await event.handle(recorder=self.__msg_recorder)
         else:
-            self.error(msg='event error: %s' % event)
+            self.error('event error: %s', event)
 
     async def __send(self, users: List, stats: List):
         bot = self.bot
         assert bot is not None, 'monitor bot not set'
         emitter = self.emitter
         assert emitter is not None, 'emitter not set'
-        self.info(msg='sending monitor reports: %s' % bot)
+        self.info('sending monitor reports: %s', bot)
         # send users data
         content = CustomizedContent.create(app='chat.dim.monitor', mod='users', act='post')
         content['users'] = users
@@ -205,7 +209,7 @@ class ActiveEvent(Event, Logging):
 
     # Override
     async def handle(self, recorder: Recorder):
-        assert isinstance(recorder, ActiveRecorder), 'recorder error: %s' % recorder
+        assert isinstance(recorder, ActiveRecorder), f'recorder error: {recorder}'
         sender = self.__sender
         remote = self.__remote_address
         recorder.add_user(identifier=sender, remote_address=remote)
@@ -250,7 +254,7 @@ class MessageEvent(Event):
 
     # Override
     async def handle(self, recorder: Recorder):
-        assert isinstance(recorder, MessageRecorder), 'recorder error: %s' % recorder
+        assert isinstance(recorder, MessageRecorder), f'recorder error: {recorder}'
         sender = self.msg.sender
         msg_type = self.msg.type
         if msg_type is None:
@@ -312,19 +316,19 @@ async def _notify_masters(sender: ID, online: bool, remote_address: Tuple[str, i
     # get sender's name
     name = await _get_nickname(identifier=sender)
     if online:
-        title = 'Activity: Online (%s)' % when
+        title = f'Activity: Online ({when})'
         relay = await _get_relay(identifier=sender)
         extra = await _get_extra(identifier=sender)
-        text = '%s: "%s" is online, socket %s, relay %s; %s' % (srv, name, remote_address, relay, extra)
+        text = f'{srv}: "{name}" is online, socket {remote_address}, relay {relay}; {extra}'
     else:
-        title = 'Activity: Offline (%s)' % when
-        text = '%s: "%s" is offline, socket %s' % (srv, name, remote_address)
+        title = f'Activity: Offline ({when})'
+        text = f'{srv}: "{name}" is offline, socket {remote_address}'
     # TODO: get masters from config.ini ?
     masters = ID.convert(array=[
         '0x952718A18C6b21abb593D84203282fe1c21773D6',
         '0x9527cFD9b6a0736d8417354088A4fC6e345E31F8',
     ])
-    Log.warning(msg='notify masters %s: %s' % (masters, text))
+    Log.warning('notify masters %s: %s', masters, text)
     if len(masters) == 0:
         return False
     # center = PushCenter()
@@ -336,21 +340,21 @@ async def _notify_masters(sender: ID, online: bool, remote_address: Tuple[str, i
     # send to apns bot
     bot = AnsCommandProcessor.ans_id(name='announcer')
     if bot is None:
-        Log.error(msg='apns bot not found')
+        Log.error('apns bot not found')
         return
     content = PushCommand(items=items)
     await emitter.send_content(content=content, receiver=bot)
-    Log.info(msg='push %d items to: %s' % (len(items), bot))
+    Log.info('push %d items to: %s', len(items), bot)
 
 
 async def _get_nickname(identifier: ID) -> Optional[str]:
     emitter = _get_emitter()
     if emitter is None:
-        Log.error(msg='emitter not found')
+        Log.error('emitter not found')
         return None
     facebook = emitter.facebook
     if facebook is None:
-        Log.warning(msg='facebook not found')
+        Log.warning('facebook not found')
         return None
     doc = await facebook.get_document(identifier=identifier)
     name = None if doc is None else DocumentUtils.get_document_name(document=doc)
@@ -364,7 +368,7 @@ async def _get_relay(identifier: ID) -> Optional[str]:
     db = _get_session_database()
     cmd, _ = await db.get_login_command_message(user=identifier)
     if cmd is None:
-        Log.warning(msg='login command not found: %s' % identifier)
+        Log.warning('login command not found: %s', identifier)
         return None
     station = cmd.get('station')
     if isinstance(station, Dict):
@@ -376,11 +380,11 @@ async def _get_relay(identifier: ID) -> Optional[str]:
 async def _get_extra(identifier: ID) -> Optional[str]:
     emitter = _get_emitter()
     if emitter is None:
-        Log.error(msg='emitter not found')
+        Log.error('emitter not found')
         return None
     facebook = emitter.facebook
     if facebook is None:
-        Log.warning(msg='facebook not found')
+        Log.warning('facebook not found')
         return None
     doc = await facebook.get_document(identifier=identifier)
     if doc is not None:
@@ -433,17 +437,17 @@ def _get_session_database() -> Optional[SessionDBI]:
                 db = session.database
                 if db is not None:
                     return db
-                Log.warning(msg='session db not found')
-            Log.warning(msg='session not found')
+                Log.warning('session db not found')
+            Log.warning('session not found')
             db = messenger.database
             if isinstance(db, SessionDBI):
                 return db
-        Log.warning(msg='messenger not found')
+        Log.warning('messenger not found')
         facebook = emitter.facebook
         if facebook is not None:
             db = facebook.barrack.database
             if isinstance(db, SessionDBI):
                 return db
-        Log.warning(msg='facebook not found')
+        Log.warning('facebook not found')
     # FIXME: get from global variable?
-    Log.error(msg='emitter not found')
+    Log.error('emitter not found')
