@@ -3,7 +3,7 @@
 exec=python3
 logs=/tmp
 
-time=$(date +%Y%m%d-%H%M%S)
+time=$(date +%Y%m%d-%H%M)
 
 function start() {
     res=$(pgrep -f "${exec} .*$2")
@@ -11,8 +11,10 @@ function start() {
     if [[ "${res}" == "" ]]
     then
         log=${logs}/$1-${time}.log
+        # echo "starting $2 >> ${log}"
+        # ${exec} "$2" >> "${log}" 2>&1 &
         echo "starting $2 >> ${log}"
-        ${exec} "$2" >> "${log}" 2>&1 &
+        ${exec} "$2" --log-dir=${logs} >> /dev/null 2>&1 &
     else
         for pid in ${res}
         do

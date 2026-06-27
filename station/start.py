@@ -59,6 +59,7 @@ LOG_LEVEL = LogLevel.DEVELOP
 LOGGER_NAME = 'dims'
 
 APP_NAME = 'DIM Network Station'
+
 DEFAULT_CONFIG = '/etc/dim/station.ini'
 
 
@@ -90,7 +91,8 @@ async def async_main():
     #  init logger
     #
     show_location = sys_argv.has_opt(opt='log-location')
-    init_logger(name=LOGGER_NAME, level=LOG_LEVEL, show_location=show_location)
+    log_directory = sys_argv.get_opt(opt='log-dir')
+    init_logger(name=LOGGER_NAME, level=LOG_LEVEL, show_location=show_location, directory=log_directory)
     #
     #  create config
     #

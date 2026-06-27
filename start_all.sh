@@ -53,7 +53,7 @@ ${launch} "dims" "station/start.py"
 sleep 2
 
 title "DIM Station Bridge"
-${launch} octopus "sbots/sbot_octopus.py"
+${launch} "bridge" "sbots/sbot_octopus.py"
 
 
 #
@@ -61,13 +61,13 @@ ${launch} octopus "sbots/sbot_octopus.py"
 #
 
 #title "DIM Search Engine"
-#${launch} search "sbots/sbot_archivist.py"
+#${launch} "archivist" "sbots/sbot_archivist.py"
 #
 #title "DIM Push Center"
-#${launch} apns "sbots/sbot_announcer.py"
+#${launch} "announcer" "sbots/sbot_announcer.py"
 #
 #title "DIM Monitor"
-#${launch} monitor "sbots/sbot_monitor.py"
+#${launch} "monitor" "sbots/sbot_monitor.py"
 
 echo ""
 echo "    >>> Done <<<"
