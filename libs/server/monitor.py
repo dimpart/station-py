@@ -323,6 +323,7 @@ async def _notify_masters(sender: ID, online: bool, remote_address: Tuple[str, i
     else:
         title = f'Activity: Offline ({when})'
         text = f'{srv}: "{name}" is offline, socket {remote_address}'
+    avatar = await _get_avatar(identifier=sender)
     # TODO: get masters from config.ini ?
     masters = ID.convert(array=[
         '0x952718A18C6b21abb593D84203282fe1c21773D6',
@@ -336,7 +337,7 @@ async def _notify_masters(sender: ID, online: bool, remote_address: Tuple[str, i
     items = []
     for receiver in masters:
         badge = -1  # keeper.increase_badge(identifier=receiver)
-        items.append(PushItem.create(receiver=receiver, title=title, content=text, badge=badge))
+        items.append(PushItem.create(receiver=receiver, title=title, content=text, image=avatar, badge=badge))
     # send to apns bot
     bot = AnsCommandProcessor.ans_id(name='announcer')
     if bot is None:
@@ -362,6 +363,27 @@ async def _get_nickname(identifier: ID) -> Optional[str]:
         return str(identifier)
     else:
         return name
+
+
+async def _get_avatar(identifier: ID) -> Optional[str]:
+    emitter = _get_emitter()
+    if emitter is None:
+        Log.error('emitter not found')
+        return None
+    facebook = emitter.facebook
+    if facebook is None:
+        Log.warning('facebook not found')
+        return None
+    visa = await facebook.get_visa(user=identifier)
+    if visa is None:
+        return None
+    avatar = visa.avatar
+    if avatar is None:
+        return None
+    url = avatar.url
+    if url is None or url.find('://') < 0:
+        return None
+    return url
 
 
 async def _get_relay(identifier: ID) -> Optional[str]:
