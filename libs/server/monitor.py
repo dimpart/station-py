@@ -32,6 +32,7 @@ from typing import Optional, Union, Tuple, List, Dict
 from dimples import DateTime
 from dimples import ID
 from dimples import DocumentUtils
+from dimples import CommandMessageUtils
 
 from dimples import ReliableMessage
 from dimples import CustomizedContent
@@ -388,15 +389,25 @@ async def _get_avatar(identifier: ID) -> Optional[str]:
 
 async def _get_relay(identifier: ID) -> Optional[str]:
     db = _get_session_database()
-    cmd, _ = await db.get_login_command_message(user=identifier)
-    if cmd is None:
-        Log.warning('login command not found: %s', identifier)
-        return None
-    station = cmd.get('station')
-    if isinstance(station, Dict):
-        host = station.get('host')
-        port = station.get('port')
-        return '%s:%s' % (host, port)
+    records = await db.get_login_command_messages(user=identifier)
+    # check login command with terminal
+    terminal = identifier.terminal
+    if terminal == '':
+        terminal = None
+    for cmd, msg in records:
+        # check terminal
+        if terminal != CommandMessageUtils.get_login_terminal(content=cmd):
+            Log.info('skip login record: %s, %s', identifier, cmd)
+            continue
+        # return station id
+        station = cmd.station
+        if isinstance(station, Dict):
+            host = station.get('host')
+            port = station.get('port')
+            return '%s:%s' % (host, port)
+        else:
+            Log.error('login command error: %s -> %s', identifier, cmd)
+            Log.error('login command error: %s -> %s', identifier, msg)
 
 
 async def _get_extra(identifier: ID) -> Optional[str]:

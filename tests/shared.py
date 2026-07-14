@@ -165,7 +165,7 @@ async def create_messenger(shared: GlobalVariable, facebook: CommonFacebook) -> 
     station.data_source = facebook
     # 2. create session with SessionDB
     session = ClientSession(station=station, database=shared.sdb)
-    session.set_identifier(identifier=user.identifier)
+    session.set_did(identifier=user.identifier)
     # 3. create messenger with session and MessageDB
     messenger = ClientMessenger(session=session, facebook=facebook, database=shared.mdb)
     # 4. create packer, processor for messenger

@@ -129,7 +129,7 @@ class Soldier(Terminal, Logging):
             assert False, 'session not found'
         else:
             self.info('setting session ID: %s', user)
-            session.set_identifier(identifier=user)
+            session.set_did(identifier=user)
         #
         #  waiting to retreat
         #

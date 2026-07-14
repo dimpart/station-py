@@ -420,8 +420,8 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
     """
 
     # Override
-    async def get_login_command_message(self, user: ID) -> Tuple[Optional[LoginCommand], Optional[ReliableMessage]]:
-        return await self.__login_table.get_login_command_message(user=user)
+    async def get_login_command_messages(self, user: ID) -> List[Tuple[LoginCommand, ReliableMessage]]:
+        return await self.__login_table.get_login_command_messages(user=user)
 
     # Override
     async def save_login_command_message(self, user: ID, content: LoginCommand, msg: ReliableMessage) -> bool:

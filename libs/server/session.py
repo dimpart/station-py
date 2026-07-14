@@ -68,9 +68,9 @@ class ServerSession(SuperSession):
     """
 
     # Override
-    def set_identifier(self, identifier: ID) -> bool:
+    def set_did(self, identifier: ID) -> bool:
         old = self.identifier
-        if super().set_identifier(identifier=identifier):
+        if super().set_did(identifier=identifier):
             coro = session_change_id(session=self, new_id=identifier, old_id=old)
             Runner.async_task(coro=coro)
             return True

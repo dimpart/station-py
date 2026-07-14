@@ -29,8 +29,8 @@ from typing import Optional, List
 from dimples import ID, Document
 
 from dimples.utils import Log, Path
+from dimples.common import DocumentUtils
 from dimples.database.dos.base import template_replace
-from dimples.database.dos.document import parse_document
 from dimples.database import DocumentStorage as SuperStorage
 
 
@@ -55,18 +55,12 @@ class DocumentStorage(SuperStorage):
         path = self.public_path(self.doc_path_new)
         return template_replace(path, key='ADDRESS', value=str(identifier.address))
 
-    # Override
-    async def load_documents(self, identifier: ID) -> List[Document]:
+    async def load_documents(self, identifier: ID) -> Optional[List[Document]]:
         """ load documents from file """
-        all_documents = await super().load_documents(identifier=identifier)
-        if all_documents is not None:
-            return all_documents
+        docs = await super().load_documents(identifier=identifier)
+        if docs is not None and len(docs) > 0:
+            return docs
         # try old file
-        doc = await self.load_document(identifier=identifier)
-        return [] if doc is None else [doc]
-
-    async def load_document(self, identifier: ID) -> Optional[Document]:
-        """ load document from file """
         path = self.__doc_path_new(identifier=identifier)
         if not await Path.exists(path=path):
             # load from old version
@@ -74,7 +68,7 @@ class DocumentStorage(SuperStorage):
         self.info(msg='Loading document from: %s' % path)
         info = await self.read_json(path=path)
         if info is not None:
-            return parse_document(dictionary=info, identifier=identifier)
+            return DocumentUtils.pump_documents(info=info)
 
     async def scan_documents(self) -> List[Document]:
         """ Scan documents from local directory for IDs """
@@ -83,12 +77,7 @@ class DocumentStorage(SuperStorage):
         array = os.listdir(pub)
         for item in array:
             docs = await load_documents(address=item, pub=pub)
-            if docs is None:  # or len(docs) == 0:
-                # try to load from old files
-                doc = await load_document(address=item, pub=pub)
-                if doc is not None:
-                    documents.append(doc)
-            else:
+            if docs is not None:
                 for doc in docs:
                     documents.append(doc)
         self.info(msg='Scanned %d documents(s) from %s' % (len(documents), pub))
@@ -97,29 +86,15 @@ class DocumentStorage(SuperStorage):
 
 async def load_documents(address: str, pub: str) -> Optional[List[Document]]:
     path = get_path(address=address, pub=pub, path=DocumentStorage.doc_path_all)
-    Log.info(msg='Loading document from: %s' % path)
-    array = await DocumentStorage.read_json(path=path)
-    if array is None:
-        return None
-    documents = []
-    for info in array:
-        doc = parse_document(dictionary=info)
-        if doc is None:
-            Log.error(msg='document error: %s' % info)
-        else:
-            documents.append(doc)
-    return documents
-
-
-async def load_document(address: str, pub: str) -> Optional[Document]:
-    path = get_path(address=address, pub=pub, path=DocumentStorage.doc_path_new)
     if not await Path.exists(path=path):
         # load from old version
-        path = get_path(address=address, pub=pub, path=DocumentStorage.doc_path_old)
+        path = get_path(address=address, pub=pub, path=DocumentStorage.doc_path_new)
+        if not await Path.exists(path=path):
+            path = get_path(address=address, pub=pub, path=DocumentStorage.doc_path_old)
     Log.info(msg='Loading document from: %s' % path)
     info = await DocumentStorage.read_json(path=path)
     if info is not None:
-        return parse_document(dictionary=info)
+        return DocumentUtils.pump_documents(info=info)
 
 
 def get_path(address: str, pub: str, path: str) -> str:

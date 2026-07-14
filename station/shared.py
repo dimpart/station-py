@@ -29,7 +29,7 @@ from dimples import ID
 from dimples import Document
 from dimples import DocumentUtils
 from dimples import AccountDBI, MessageDBI, SessionDBI
-from dimples.common import ProviderInfo
+from dimples.common import ServiceProvider
 from dimples.group import SharedGroupManager
 
 from libs.utils import SysArgvParser
@@ -248,7 +248,7 @@ async def create_config(sys_argv: SysArgvParser, default_config: str) -> Optiona
 
 async def refresh_neighbors(config: Config, database: SessionDBI):
     """ Update neighbor stations (default provider) """
-    provider = ProviderInfo.GSP
+    provider = ServiceProvider.GSP
     neighbors = config.neighbors
     if len(neighbors) > 0:
         Log.info('[DB] checking %d neighbor(s): %s', len(neighbors), provider)
