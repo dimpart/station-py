@@ -37,7 +37,10 @@ class PushTmpl:
     recv_image = 'Dear {receiver}: {sender} sent you an image.'
     recv_voice = 'Dear {receiver}: {sender} sent you a voice message.'
     recv_video = 'Dear {receiver}: {sender} sent you a video.'
+    recv_page = 'Dear {receiver}: {sender} sent you a web page.'
+    recv_card = 'Dear {receiver}: {sender} sent you a name card.'
     recv_money = 'Dear {receiver}: {sender} sent you some money.'
+    recv_combine = 'Dear {receiver}: {sender} sent you a chat history.'
 
     grp_recv_message = 'Dear {receiver}: {sender} sent you a message in group "{group}".'
     grp_recv_text = 'Dear {receiver}: {sender} sent you a text message in group "{group}".'
@@ -45,7 +48,10 @@ class PushTmpl:
     grp_recv_image = 'Dear {receiver}: {sender} sent you an image in group "{group}".'
     grp_recv_voice = 'Dear {receiver}: {sender} sent you a voice message in group "{group}".'
     grp_recv_video = 'Dear {receiver}: {sender} sent you a video in group "{group}".'
+    grp_recv_page = 'Dear {receiver}: {sender} sent you a web page in group "{group}".'
+    grp_recv_card = 'Dear {receiver}: {sender} sent you a name card in group "{group}".'
     grp_recv_money = 'Dear {receiver}: {sender} sent you some money in group "{group}".'
+    grp_recv_combine = 'Dear {receiver}: {sender} sent you a chat history in group "{group}".'
 
 
 #

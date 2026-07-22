@@ -37,7 +37,7 @@ from typing import Optional, Tuple, List
 from dimples import ID, ContentType, Envelope, ReliableMessage
 from dimples.server import PushService, BadgeKeeper
 
-from ..utils import Logging
+from ..utils import Logging, Singleton
 from ..utils.localizations import Translations, Locale
 from ..common import CommonFacebook
 from ..common.protocol import PushCommand, PushItem
@@ -156,29 +156,9 @@ class DefaultPushService(PushService, Logging):
                              group: ID, msg_type: str) -> Tuple[Optional[str], Optional[str]]:
         """ build title, content for notification """
         # get title, body template
-        if msg_type == ContentType.ANY or msg_type == '*':
-            title = 'Message'
-            body = PushTmpl.recv_message if group is None else PushTmpl.grp_recv_message
-        elif msg_type == ContentType.TEXT or msg_type == 'text':
-            title = 'Text Message'
-            body = PushTmpl.recv_text if group is None else PushTmpl.grp_recv_text
-        elif msg_type == ContentType.FILE or msg_type == 'file':
-            title = 'File'
-            body = PushTmpl.recv_file if group is None else PushTmpl.grp_recv_file
-        elif msg_type == ContentType.IMAGE or msg_type == 'image':
-            title = 'Image'
-            body = PushTmpl.recv_image if group is None else PushTmpl.grp_recv_image
-        elif msg_type == ContentType.AUDIO or msg_type == 'audio':
-            title = 'Voice'
-            body = PushTmpl.recv_voice if group is None else PushTmpl.grp_recv_voice
-        elif msg_type == ContentType.VIDEO or msg_type == 'video':
-            title = 'Video'
-            body = PushTmpl.recv_video if group is None else PushTmpl.grp_recv_video
-        elif msg_type in [ContentType.MONEY, ContentType.TRANSFER, 'money', 'transfer']:
-            title = 'Money'
-            body = PushTmpl.recv_money if group is None else PushTmpl.grp_recv_money
-        else:
-            # unknown type
+        title, body = s_push_map.get(msg_type=msg_type, group=group)
+        if title is None or body is None:
+            # not found
             return None, None
         # get language
         facebook = self.__facebook
@@ -204,3 +184,67 @@ class DefaultPushService(PushService, Logging):
         if group is not None:
             params['group'] = await facebook.get_name(identifier=group)
         return title, translates.translate(text=body, params=params)
+
+
+@Singleton
+class _PushMap:
+
+    def __init__(self):
+        super().__init__()
+        self.__title_map = {}
+        self.__body_map = {}
+        self.__grp_map = {}
+        self.load()
+
+    def load(self):
+        self.set(ContentType.TEXT, 'text', 'Text Message', PushTmpl.recv_text, PushTmpl.grp_recv_text)
+        # file
+        self.set(ContentType.FILE, 'file', 'File', PushTmpl.recv_file, PushTmpl.grp_recv_file)
+        self.set(ContentType.IMAGE, 'image', 'Image', PushTmpl.recv_image, PushTmpl.grp_recv_image)
+        self.set(ContentType.AUDIO, 'audio', 'Voice', PushTmpl.recv_voice, PushTmpl.grp_recv_voice)
+        self.set(ContentType.VIDEO, 'video', 'Video', PushTmpl.recv_video, PushTmpl.grp_recv_video)
+        # web page
+        self.set(ContentType.PAGE, 'page', 'Web Page', PushTmpl.recv_page, PushTmpl.grp_recv_page)
+        # name card
+        self.set(ContentType.NAME_CARD, 'card', 'Name Card', PushTmpl.recv_card, PushTmpl.grp_recv_card)
+        # money
+        self.set(ContentType.MONEY, 'money', 'Money', PushTmpl.recv_money, PushTmpl.grp_recv_money)
+        self.set(ContentType.TRANSFER, 'transfer', 'Money', PushTmpl.recv_money, PushTmpl.grp_recv_money)
+        # forward
+        self.set(ContentType.COMBINE_FORWARD, 'combine',
+                 'Chat History', PushTmpl.recv_combine, PushTmpl.grp_recv_combine)
+
+    def set(self, msg_type: str, alias: str, title: str, body: str, grp_body: str):
+        # set title
+        self.__title_map[msg_type] = title
+        self.__title_map[alias] = title
+        # set body
+        self.__body_map[msg_type] = body
+        self.__body_map[alias] = body
+        # set group body
+        self.__grp_map[msg_type] = grp_body
+        self.__grp_map[alias] = grp_body
+
+    def get(self, msg_type, group: Optional[ID]) -> Tuple[Optional[str], Optional[str]]:
+        """ get title & body for message type """
+        title = self.__title_map.get(msg_type)
+        if group is None:
+            body = self.__body_map.get(msg_type)
+        else:
+            body = self.__grp_map.get(msg_type)
+        # check the results
+        if title is None or body is None:
+            if msg_type in [ContentType.COMMAND, ContentType.HISTORY, 'command', 'history']:
+                # ignore commands
+                return None, None
+            elif msg_type in [ContentType.ARRAY, ContentType.FORWARD, 'array', 'forward']:
+                # ignore packages
+                return None, None
+            # any type
+            title = 'Message'
+            body = PushTmpl.recv_message if group is None else PushTmpl.grp_recv_message
+        # OK
+        return title, body
+
+
+s_push_map = _PushMap()
