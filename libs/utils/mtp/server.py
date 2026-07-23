@@ -2,7 +2,6 @@
 
 import json
 import socket
-import traceback
 from typing import Optional
 
 from udp.mtp import Package, DataType
@@ -18,6 +17,7 @@ from dimples.conn import UDPServerGate
 
 import dmtp
 
+from ...utils import get_exception_traceback
 from ...utils import Logging
 
 from .manager import ContactManager, FieldValueEncoder
@@ -153,7 +153,9 @@ class Server(dmtp.Server, Logging, PorterDelegate):
             return await super()._process_command(cmd=cmd, source=source)
         except Exception as error:
             self.error('failed to process command (%s): %s', cmd, error)
-            traceback.print_exc()
+            # traceback.print_exc()
+            tr = get_exception_traceback()
+            self.error('traceback: %s', tr)
             return False
 
     # Override

@@ -51,10 +51,11 @@ class DeviceCache(RedisCache):
         Device Tokens for APNS
         ~~~~~~~~~~~~~~~~~~~~~~
 
-        redis key: 'dim.user.{ID}.devices'
+        redis key: 'dim.user.{ADDRESS}.devices'
     """
     def __cache_name(self, identifier: ID) -> str:
-        return '%s.%s.%s.devices' % (self.db_name, self.tbl_name, identifier)
+        address = str(identifier.address)
+        return '%s.%s.%s.devices' % (self.db_name, self.tbl_name, address)
 
     async def get_devices(self, identifier: ID) -> Optional[List[DeviceInfo]]:
         name = self.__cache_name(identifier=identifier)

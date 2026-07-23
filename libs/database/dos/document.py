@@ -58,7 +58,7 @@ class DocumentStorage(SuperStorage):
     async def load_documents(self, identifier: ID) -> Optional[List[Document]]:
         """ load documents from file """
         docs = await super().load_documents(identifier=identifier)
-        if docs is not None and len(docs) > 0:
+        if docs is not None:  # and len(docs) > 0:
             return docs
         # try old file
         path = self.__doc_path_new(identifier=identifier)
@@ -67,8 +67,17 @@ class DocumentStorage(SuperStorage):
             path = self.__doc_path_old(identifier=identifier)
         self.info(msg='Loading document from: %s' % path)
         info = await self.read_json(path=path)
-        if info is not None:
-            return DocumentUtils.pump_documents(info=info)
+        if info is None:
+            # file not found
+            self.warning('document file not found: %s', path)
+            return None
+        # load documents from local storage
+        documents = DocumentUtils.pump_documents(info=info)
+        if documents is None:
+            self.error('documents error: %s -> %s', identifier, path)
+        else:
+            self.info('Loaded %d document(s) from: %s', len(documents), path)
+        return documents
 
     async def scan_documents(self) -> List[Document]:
         """ Scan documents from local directory for IDs """

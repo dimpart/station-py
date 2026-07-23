@@ -49,6 +49,8 @@ from dimples.utils import json_encode, json_decode
 
 from dimples.utils import get_msg_sig
 
+from dimples.utils import get_exception_traceback
+
 
 # @Singleton
 # class NotificationCenter(DefaultNotificationCenter):
@@ -82,5 +84,7 @@ __all__ = [
     'json_encode', 'json_decode',
 
     'get_msg_sig',
+
+    'get_exception_traceback',
 
 ]

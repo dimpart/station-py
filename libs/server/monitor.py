@@ -25,7 +25,6 @@
 
 import threading
 import time
-import traceback
 from abc import ABC, abstractmethod
 from typing import Optional, Union, Tuple, List, Dict
 
@@ -38,6 +37,7 @@ from dimples import ReliableMessage
 from dimples import CustomizedContent
 from dimples import SessionDBI
 
+from ..utils import get_exception_traceback
 from ..utils import Singleton, Log, Logging
 from ..utils import Runner
 from ..common.protocol import PushItem, PushCommand
@@ -151,7 +151,9 @@ class Monitor(Runner, Logging):
             await self.__handle(event=event)
         except Exception as e:
             self.error('handle event error: %s', e)
-            traceback.print_exc()
+            # traceback.print_exc()
+            tr = get_exception_traceback()
+            self.error('traceback: %s', tr)
         return True
 
     async def __handle(self, event: Event):

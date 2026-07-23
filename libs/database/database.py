@@ -133,7 +133,7 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         ~~~~~~~~~~~~~~~~~~~~~~
 
         file path: '.dim/public/{ADDRESS}/meta.js'
-        redis key: 'mkm.meta.{ID}'
+        redis key: 'mkm.meta.{ADDRESS}'
     """
 
     # noinspection PyMethodMayBeStatic
@@ -156,7 +156,9 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         ~~~~~~~~~~~~~~~~~~~~~
 
         file path: '.dim/public/{ADDRESS}/profile.js'
-        redis key: 'mkm.document.{ID}'
+        file path: '.dim/public/{ADDRESS}/document.js'
+        file path: '.dim/public/{ADDRESS}/documents.js'
+        redis key: 'mkm.documents.{ADDRESS}'
         redis key: 'mkm.docs.keys'
     """
 
@@ -197,8 +199,8 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         User contacts
         ~~~~~~~~~~~~~
 
-        file path: '.dim/protected/{ADDRESS}/contacts.txt'
-        redis key: 'mkm.user.{ID}.contacts'
+        file path: '.dim/private/{ADDRESS}/contacts.js'
+        redis key: 'mkm.user.{ADDRESS}.contacts'
     """
 
     # Override
@@ -214,7 +216,7 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         ~~~~~~~~~~~~~~~~~~~~~~~~
 
         file path: '.dim/protected/{ADDRESS}/contacts_stored.js'
-        redis key: 'mkm.user.{ID}.cmd.contacts'
+        redis key: 'mkm.user.{ADDRESS}.cmd.contacts'
     """
 
     async def save_contacts_command(self, content: Command, identifier: ID) -> bool:
@@ -228,7 +230,7 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         ~~~~~~~~~~~~~~~~~~
 
         file path: '.dim/protected/{ADDRESS}/block_stored.js'
-        redis key: 'mkm.user.{ID}.cmd.block'
+        redis key: 'mkm.user.{ADDRESS}.cmd.block'
     """
 
     async def save_block_command(self, content: BlockCommand, identifier: ID) -> bool:
@@ -256,7 +258,7 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         ~~~~~~~~~~~~~~~~~
 
         file path: '.dim/protected/{ADDRESS}/mute_stored.js'
-        redis key: 'mkm.user.{ID}.cmd.mute'
+        redis key: 'mkm.user.{ADDRESS}.cmd.mute'
     """
 
     async def save_mute_command(self, content: MuteCommand, identifier: ID) -> bool:
@@ -284,7 +286,7 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         ~~~~~~~~~~~~~~~~~~~~~~
 
         file path: '.dim/protected/{ADDRESS}/devices.js'
-        redis key: 'dim.user.{ID}.devices'
+        redis key: 'dim.user.{ADDRESS}.devices'
     """
 
     async def get_devices(self, identifier: ID) -> Optional[List[DeviceInfo]]:
@@ -300,8 +302,10 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         Group members
         ~~~~~~~~~~~~~
 
-        file path: '.dim/protected/{ADDRESS}/members.txt'
-        redis key: 'mkm.group.{ID}.members'
+        file path: '.dim/protected/{ADDRESS}/members.js'
+        file path: '.dim/protected/{ADDRESS}/administrators.js'
+        redis key: 'mkm.group.{ADDRESS}.members'
+        redis key: 'mkm.group.{ADDRESS}.administrators'
     """
 
     # Override
@@ -416,7 +420,8 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         Login Info
         ~~~~~~~~~~
 
-        redis key: 'mkm.user.{ID}.login'
+        file path: '.dim/public/{ADDRESS}/login_commands.js'
+        redis key: 'mkm.user.{ADDRESS}.login_commands'
     """
 
     # Override

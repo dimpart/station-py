@@ -28,50 +28,16 @@ from typing import Optional, List
 
 from aiou.mem import CachePool
 
-from dimples import DocumentType
-from dimples import ID, Document, DocumentUtils
+from dimples import ID
+from dimples import Document, Visa
+from dimples import DocumentUtils
 from dimples import DocumentDBI
 from dimples.utils import Config
 from dimples.database import DbTask, DataCache
+from dimples.database.t_document import DocTask
 
 from .redis import DocumentCache
 from .dos import DocumentStorage
-
-
-class DocTask(DbTask[ID, List[Document]]):
-
-    def __init__(self, identifier: ID,
-                 redis: DocumentCache, storage: DocumentStorage,
-                 mutex_lock: threading.Lock, cache_pool: CachePool):
-        super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool)
-        self._identifier = identifier
-        self._redis = redis
-        self._dos = storage
-
-    @property  # Override
-    def cache_key(self) -> ID:
-        return self._identifier
-
-    # Override
-    async def _read_data(self) -> Optional[List[Document]]:
-        # 1. get from redis server
-        docs = await self._redis.load_documents(identifier=self._identifier)
-        if docs is not None and len(docs) > 0:
-            return docs
-        # 2. get from local storage
-        docs = await self._dos.load_documents(identifier=self._identifier)
-        if docs is not None and len(docs) > 0:
-            # 3. update redis server
-            await self._redis.save_documents(documents=docs, identifier=self._identifier)
-            return docs
-
-    # Override
-    async def _write_data(self, value: List[Document]) -> bool:
-        # 1. store into redis server
-        ok1 = await self._redis.save_documents(documents=value, identifier=self._identifier)
-        # 2. save into local storage
-        ok2 = await self._dos.save_documents(documents=value, identifier=self._identifier)
-        return ok1 or ok2
 
 
 class ScanTask(DbTask[ID, List[Document]]):
@@ -112,8 +78,19 @@ class DocumentTable(DataCache, DocumentDBI):
     def show_info(self):
         self._dos.show_info()
 
-    def _new_doc_task(self, identifier: ID) -> DocTask:
-        return DocTask(identifier=identifier,
+    def _new_doc_task(self, identifier: ID, new_document: Document = None) -> DocTask:
+        terminal = identifier.terminal
+        if terminal is not None:
+            assert identifier.is_user, f'did error: {identifier}'
+            if new_document is not None:
+                assert isinstance(new_document, Visa), f'visa error: {identifier}, {new_document}'
+                # old = DocumentUtils.get_visa_terminal(document=new_document)
+                old = new_document.get('terminal')
+                if old is None or old == '':
+                    new_document['terminal'] = terminal
+            # Naked ID
+            identifier = identifier.without_terminal()
+        return DocTask(identifier=identifier, new_document=new_document,
                        redis=self._redis, storage=self._dos,
                        mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
@@ -127,32 +104,28 @@ class DocumentTable(DataCache, DocumentDBI):
 
     # Override
     async def save_document(self, document: Document, identifier: ID) -> bool:
-        assert document.is_valid, 'document invalid: %s -> %s' % (identifier, document)
-        doc_type = DocumentUtils.get_document_type(document=document)
         #
-        #  check old documents
+        #   0. check valid
         #
-        my_documents = await self.get_documents(identifier=identifier)
-        old = DocumentUtils.last_document(my_documents, doc_type)
-        if old is None and doc_type == DocumentType.VISA:
-            old = DocumentUtils.last_document(my_documents, 'profile')
-        if old is not None:
-            if DocumentUtils.is_expired(document, old):
-                # self.warning(msg='drop expired document: %s' % identifier)
-                return False
-            my_documents.remove(old)
-        my_documents.append(document)
-        # update cache for Search Engine
-        with self.lock:
-            all_documents, _ = self.cache.fetch(key=ScanTask.ALL_KEY)
-            if all_documents is not None:
-                assert isinstance(all_documents, List), 'all_documents error: %s' % all_documents
-                all_documents.append(document)
+        did = DocumentUtils.get_document_id(document=document)
+        if not identifier.is_same_as(other=did):
+            self.error('document id not matched: %s, %s', did, identifier)
+            return False
+        elif not document.is_valid:
+            self.error('document not valid: %s', identifier)
+            return False
         #
-        #  build task for saving
+        #   1. load old records
         #
         task = self._new_doc_task(identifier=identifier)
-        return await task.save(value=my_documents)
+        docs = await task.load()
+        if docs is None:
+            docs = []
+        #
+        #   2. save new record
+        #
+        task = self._new_doc_task(identifier=identifier, new_document=document)
+        return await task.save(docs)
 
     # Override
     async def get_documents(self, identifier: ID) -> List[Document]:

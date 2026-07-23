@@ -38,10 +38,11 @@ class UserCache(SuperCache):
         Contacts Command
         ~~~~~~~~~~~~~~~~
 
-        redis key: 'mkm.user.{ID}.cmd.contacts'
+        redis key: 'mkm.user.{ADDRESS}.cmd.contacts'
     """
     def __contacts_command_cache_name(self, identifier: ID) -> str:
-        return '%s.%s.%s.cmd.contacts' % (self.db_name, self.tbl_name, identifier)
+        address = str(identifier.address)
+        return '%s.%s.%s.cmd.contacts' % (self.db_name, self.tbl_name, address)
 
     async def save_contacts_command(self, content: Command, identifier: ID) -> bool:
         key = self.__contacts_command_cache_name(identifier=identifier)
@@ -72,10 +73,11 @@ class UserCache(SuperCache):
         Block Command
         ~~~~~~~~~~~~~
 
-        redis key: 'mkm.user.{ID}.cmd.block'
+        redis key: 'mkm.user.{ADDRESS}.cmd.block'
     """
     def __block_command_cache_name(self, identifier: ID) -> str:
-        return '%s.%s.%s.cmd.block' % (self.db_name, self.tbl_name, identifier)
+        address = str(identifier.address)
+        return '%s.%s.%s.cmd.block' % (self.db_name, self.tbl_name, address)
 
     async def save_block_command(self, content: BlockCommand, identifier: ID) -> bool:
         key = self.__block_command_cache_name(identifier=identifier)
@@ -91,10 +93,11 @@ class UserCache(SuperCache):
         Mute Command
         ~~~~~~~~~~~~~
 
-        redis key: 'mkm.user.{ID}.cmd.mute'
+        redis key: 'mkm.user.{ADDRESS}.cmd.mute'
     """
     def __mute_command_cache_name(self, identifier: ID) -> str:
-        return '%s.%s.%s.cmd.mute' % (self.db_name, self.tbl_name, identifier)
+        address = str(identifier.address)
+        return '%s.%s.%s.cmd.mute' % (self.db_name, self.tbl_name, address)
 
     async def save_mute_command(self, content: MuteCommand, identifier: ID) -> bool:
         key = self.__mute_command_cache_name(identifier=identifier)

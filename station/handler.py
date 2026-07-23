@@ -30,9 +30,9 @@
     Handler for each connection
 """
 
-import traceback
 from socketserver import StreamRequestHandler
 
+from libs.utils import get_exception_traceback
 from libs.utils import Logging, Runner
 from libs.server import ServerSession, SessionCenter
 from libs.server.cpu.text import RequestHandlerMarker
@@ -73,7 +73,9 @@ class RequestHandler(StreamRequestHandler, Logging):
             self.info(msg='session finished: %s' % str(self.client_address))
         except Exception as error:
             self.error(msg='request handler error: %s' % error)
-            traceback.print_exc()
+            # traceback.print_exc()
+            tr = get_exception_traceback()
+            self.error('traceback: %s', tr)
 
 
 async def _start_session(handler: RequestHandler):
