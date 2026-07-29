@@ -34,30 +34,53 @@ from dimples.database.dos import Storage
 
 
 class DeviceInfo:
+    """
+        Push Notification service
+        ~~~~~~~~~~~~~~~~~~~~~~~~~
+        Device info report from client
+
+
+        Android
+        ~~~~~~~
+            data format: {
+                "time"         : 123.45,
+                "terminal"     : "HWMRX",
+
+                "title"        : "c2dm",
+
+                "platform"     : "Android",
+                "channel"      : "firebase",
+                "token"        : "..."
+            }
+
+        iOS
+        ~~~
+            data format: {
+                "time"         : 123.45,
+                "terminal"     : "iPhone9_2",
+
+                "title"        : "apns",
+
+                "platform"     : "iOS",
+                "topic"        : "chat.dim.tarsier",
+                "sandbox"      : true,
+                "device_token" : "..."
+            }
+    """
+
+    EXPIRES = 3600 * 24 * 90  # device token will be expired after 3 months
 
     def __init__(self, info: Dict[str, Any]):
         super().__init__()
         self.__info = info
 
     @property
-    def token(self) -> str:               # Hex encoded
-        value = self.__info.get('token')
-        if value is None:
-            value = self.__info.get('device_token')
-            if value is None:
-                device = self.__info.get('device')
-                if isinstance(device, Dict):
-                    value = device.get('token')
-        return value
-
-    @property
-    def topic(self) -> Optional[str]:     # 'chat.dim.sechat'
-        return self.__info.get('topic')
-
-    @property
-    def sandbox(self) -> Optional[bool]:
-        value = self.__info.get('sandbox')
-        return Converter.get_bool(value=value, default=None)
+    def is_expired(self) -> bool:
+        when = self.time
+        if when is None:
+            return True
+        now = DateTime.current_timestamp()
+        return when < (now - self.EXPIRES)
 
     @property
     def time(self) -> Optional[DateTime]:
@@ -65,30 +88,73 @@ class DeviceInfo:
         return Converter.get_datetime(value=value, default=None)
 
     @property
-    def model(self) -> Optional[str]:     # 'iPad'
-        return self.__info.get('model')
+    def terminal(self) -> Optional[str]:
+        value = self.__info.get('terminal')
+        return Converter.get_str(value=value, default='')
+
+    @property
+    def title(self) -> Optional[str]:
+        value = self.__info.get('title')
+        return Converter.get_str(value=value, default='')
 
     @property
     def platform(self) -> Optional[str]:  # 'iOS'
-        return self.__info.get('platform')
-
-    @property
-    def system(self) -> Optional[str]:    # 'iPadOS 16.3'
-        return self.__info.get('system')
+        value = self.__info.get('platform')
+        return Converter.get_str(value=value, default='')
 
     @property
     def channel(self) -> Optional[str]:   # 'Firebase'
-        return self.__info.get('channel')
+        value = self.__info.get('channel')
+        return Converter.get_str(value=value, default=None)
+
+    @property
+    def topic(self) -> Optional[str]:     # 'chat.dim.sechat'
+        value = self.__info.get('topic')
+        return Converter.get_str(value=value, default=None)
+
+    @property
+    def sandbox(self) -> Optional[bool]:
+        value = self.__info.get('sandbox')
+        return Converter.get_bool(value=value, default=None)
+
+    @property
+    def token(self) -> str:
+        value = self.__info.get('token')
+        if value is None:
+            value = self.__info.get('device_token')
+            if value is None:
+                # compact with old version
+                device = self.__info.get('device')
+                if isinstance(device, Dict):
+                    value = device.get('token')
+        return Converter.get_str(value=value, default='')
+
+    def is_matched(self, identifier: ID) -> bool:
+        terminal = identifier.terminal
+        if terminal is None:
+            terminal = ''
+        return terminal == self.terminal
+
+    def to_str(self) -> str:
+        clazz = self.__class__.__name__
+        title = self.title
+        platform = self.platform
+        terminal = self.terminal
+        token = self.token
+        return '<%s title="%s" platform="%s" terminal="%s" time="%s">\n' \
+               '    token: "%s"\n' \
+               '    channel: %s\n' \
+               '    topic: %s\n' \
+               '    sandbox: %s\n' \
+               '' \
+               '</%s>'\
+               % (clazz, title, platform, terminal, self.time, token, self.channel, self.token, self.sandbox, clazz)
 
     def __str__(self) -> str:
-        clazz = self.__class__.__name__
-        return '<%s token="%s" topic="%s" sandbox=%s />' % (clazz, self.token, self.topic, self.sandbox)
+        return self.to_str()
 
     def __repr__(self) -> str:
-        clazz = self.__class__.__name__
-        return '<%s token="%s" topic="%s" sandbox=%s>' \
-               '%s (%s) %s' \
-               '</%s>' % (clazz, self.token, self.topic, self.sandbox, self.model, self.platform, self.system, clazz)
+        return self.to_str()
 
     def to_json(self) -> Dict[str, Any]:
         return self.__info
@@ -100,7 +166,7 @@ class DeviceInfo:
         elif isinstance(info, str):
             info = {'token': info}
         else:
-            # assert False, 'device info error: %s' % info
+            # assert False, f'device info error: {info}'
             return None
         return DeviceInfo(info=info)
 
@@ -151,14 +217,14 @@ class DeviceStorage(Storage):
         path = self.__devices_path(identifier=identifier)
         array = await self.read_json(path=path)
         if not isinstance(array, List):
-            self.error(msg='devices not exists: %s' % path)
+            self.error('devices not exists: %s', path)
             return None
-        self.info('loaded %d device(s) from: %s' % (len(array), path))
+        self.info('loaded %d device(s) from: %s', len(array), path)
         return DeviceInfo.convert(array=array)
 
     async def save_devices(self, devices: List[DeviceInfo], identifier: ID) -> bool:
         path = self.__devices_path(identifier=identifier)
-        self.info('saving %d device(s) into: %s' % (len(devices), path))
+        self.info('saving %d device(s) into: %s', len(devices), path)
         return await self.write_json(container=DeviceInfo.revert(devices=devices), path=path)
 
     async def add_device(self, device: DeviceInfo, identifier: ID) -> bool:

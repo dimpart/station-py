@@ -141,6 +141,12 @@ class PushNotificationClient(Runner, Logging):
             if platform is None:
                 self.error('device error: %s => %s', item, receiver)
                 continue
+            elif item.is_expired:
+                self.warning('device info expired: %s => %s', item, receiver)
+                continue
+            elif not item.is_matched(identifier=receiver):
+                self.warning('device terminal not matched: %s => %s', item, receiver)
+                continue
             platform = platform.lower()
             if platform == 'ios':
                 pns = self.apple_pns
@@ -150,9 +156,9 @@ class PushNotificationClient(Runner, Logging):
                 self.error('platform error: %s, %s => %s', platform, item, receiver)
                 continue
             if pns is None:
-                self.error('push notification service not found: %s', platform)
+                self.error('push service not found: %s (%s)', receiver, platform)
             elif await pns.push_notification(aps=aps, device=item, receiver=receiver):
-                self.info('push notification success: %s', receiver)
+                self.info('push notification success: %s (%s)', receiver, platform)
                 return True
             else:
-                self.error('push notification error: %s', receiver)
+                self.error('push notification error: %s (%s)', receiver, platform)

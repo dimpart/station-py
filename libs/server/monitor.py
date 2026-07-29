@@ -347,6 +347,7 @@ async def _notify_masters(sender: ID, online: bool, remote_address: Tuple[str, i
         Log.error('apns bot not found')
         return
     content = PushCommand(items=items)
+    content['MTA'] = str(user.identifier)
     await emitter.send_content(content=content, receiver=bot)
     Log.info('push %d items to: %s', len(items), bot)
 

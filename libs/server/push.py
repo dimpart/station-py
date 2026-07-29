@@ -90,6 +90,8 @@ class DefaultPushService(PushService, Logging):
             if bot is None:
                 self.warning(msg='apns bot not set')
                 return False
+            facebook = self.__facebook
+            current_user = await facebook.current_user
             mute_filter = FilterManager().mute_filter
             expired = time.time() - self.MESSAGE_EXPIRES
             items = []
@@ -113,6 +115,8 @@ class DefaultPushService(PushService, Logging):
                 bot = self.bot
                 if bot is not None:
                     content = PushCommand(items=items)
+                    if current_user is not None:
+                        content['MTA'] = str(current_user.identifier)
                     emitter = self.__emitter
                     await emitter.send_content(content=content, receiver=bot)
         except Exception as error:

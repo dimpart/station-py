@@ -30,20 +30,27 @@
     Report protocol
 """
 
-from typing import List, Dict
+from typing import Optional, List, Dict
 
 from dimples import ReliableMessage
 from dimples import Content, ReportCommand
 from dimples import BaseCommandProcessor
+from dimples import Session
 
 from ...utils import Logging
 
 from ...database import DeviceInfo
 from ...database import Database
-from ...common import CommonFacebook
+from ...common import CommonFacebook, CommonMessenger
 
 
 class ReportCommandProcessor(BaseCommandProcessor, Logging):
+
+    @property
+    def database(self) -> Database:
+        db = self.facebook.barrack.database
+        assert isinstance(db, Database), 'database error: %s' % db
+        return db
 
     @property
     def facebook(self) -> CommonFacebook:
@@ -52,10 +59,22 @@ class ReportCommandProcessor(BaseCommandProcessor, Logging):
         return barrack
 
     @property
-    def database(self) -> Database:
-        db = self.facebook.barrack.database
-        assert isinstance(db, Database), 'database error: %s' % db
-        return db
+    def messenger(self) -> CommonMessenger:
+        transformer = super().messenger
+        assert isinstance(transformer, CommonMessenger), 'messenger error: %s' % transformer
+        return transformer
+
+    @property
+    def session(self) -> Session:
+        messenger = self.messenger
+        return messenger.session
+
+    @property
+    def session_terminal(self) -> Optional[str]:
+        session = self.session
+        identifier = session.identifier
+        if identifier is not None:
+            return identifier.terminal
 
     # Override
     async def process_content(self, content: Content, r_msg: ReliableMessage) -> List[Content]:
@@ -72,6 +91,13 @@ class ReportCommandProcessor(BaseCommandProcessor, Logging):
     async def __process_apns(self, content: ReportCommand, msg: ReliableMessage) -> List[Content]:
         # submit device token for APNs
         info = content.to_dict()
+        # fix 'terminal'
+        terminal = info.get('terminal')
+        if terminal is None or terminal == '':
+            terminal = self.session_terminal
+            if terminal is not None and terminal != '':
+                info['terminal'] = terminal
+        # get device token
         token = info.get('device_token')
         if token is None:
             token = info.get('token')
