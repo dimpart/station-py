@@ -16,7 +16,8 @@ from dimples import DateTime
 from dimples import ID
 
 from ..utils import Singleton, Logging, Runner
-from ..common import PushInfo, PushItem
+from ..common.protocol import PushCommand
+from ..common import PushInfo
 from ..database import DeviceInfo
 
 
@@ -29,23 +30,18 @@ class PushNotificationService(ABC):
         )
 
 
-class PushTask:
+class PushTask(PushCommand):
 
     EXPIRES = 300
 
-    def __init__(self, items: List[PushItem], msg_time: DateTime):
-        super().__init__()
-        self.__items = items
-        self.__time = msg_time.timestamp
-
-    @property
-    def items(self) -> List[PushItem]:
-        return self.__items
+    # def __init__(self, content: Dict[str, Any]):
+    #     super().__init__(content=content)
 
     @property
     def is_expired(self) -> bool:
-        now = DateTime.now()
-        return self.__time < (now.timestamp - self.EXPIRES)
+        expired = DateTime.current_timestamp() - self.EXPIRES
+        when = self.time
+        return when is None or when < expired
 
 
 @Singleton
@@ -99,8 +95,9 @@ class PushNotificationClient(Runner, Logging):
     def delegate(self, value: Delegate):
         self.__delegate = weakref.ref(value)
 
-    def add_task(self, items: List[PushItem], msg_time: DateTime):
-        task = PushTask(items=items, msg_time=msg_time)
+    def add_task(self, content: PushCommand):
+        info = content.to_dict()
+        task = PushTask(content=info)
         with self.__lock:
             self.__tasks.append(task)
 
@@ -123,15 +120,16 @@ class PushNotificationClient(Runner, Logging):
         if task.is_expired:
             self.warning('task expired, drop %d item(s).', len(array))
             array = []
+        sid = task.get_str(key='MTA')
         # push items
         for item in array:
             try:
-                await self.__push(aps=item.info, receiver=item.receiver)
+                await self.__push(aps=item.info, receiver=item.receiver, mta=sid)
             except Exception as error:
                 self.error('push error: %s, item: %s', error, item)
         return True
 
-    async def __push(self, aps: PushInfo, receiver: ID) -> bool:
+    async def __push(self, aps: PushInfo, receiver: ID, mta: Optional[str]) -> bool:
         devices = await self.delegate.get_devices(identifier=receiver)
         if devices is None or len(devices) == 0:
             self.warning('cannot get device token for user %s', receiver)
@@ -158,7 +156,7 @@ class PushNotificationClient(Runner, Logging):
             if pns is None:
                 self.error('push service not found: %s (%s)', receiver, platform)
             elif await pns.push_notification(aps=aps, device=item, receiver=receiver):
-                self.info('push notification success: %s (%s)', receiver, platform)
+                self.info('push notification success: %s (%s), MTA: %s.', receiver, platform, mta)
                 return True
             else:
-                self.error('push notification error: %s (%s)', receiver, platform)
+                self.error('push notification error: %s (%s), MTA: %s', receiver, platform, mta)

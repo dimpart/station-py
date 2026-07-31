@@ -77,7 +77,7 @@ class PushCommandProcessor(BaseCommandProcessor, Logging):
     async def process_content(self, content: Content, r_msg: ReliableMessage) -> List[Content]:
         assert isinstance(content, PushCommand), 'push command error: %s' % content
         items = content.items
-        sid = content.get('MTA')
+        sid = content.get_str(key='MTA')
         # check expired
         expired = time.time() - self.MESSAGE_EXPIRES
         if 0 < r_msg.time < expired:
@@ -87,7 +87,7 @@ class PushCommandProcessor(BaseCommandProcessor, Logging):
             self.info('push %d item(s) from station: %s.', len(items), sid)
         # add push task
         pnc = PushNotificationClient()
-        pnc.add_task(items=items, msg_time=r_msg.time)
+        pnc.add_task(content=content)
         return []
 
 
