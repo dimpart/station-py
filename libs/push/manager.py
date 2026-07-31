@@ -96,7 +96,7 @@ class PushNotificationClient(Runner, Logging):
         self.__delegate = weakref.ref(value)
 
     def add_task(self, content: PushCommand):
-        info = content.to_dict()
+        info = content.to_map()
         task = PushTask(content=info)
         with self.__lock:
             self.__tasks.append(task)

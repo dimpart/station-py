@@ -33,7 +33,7 @@ class MTPUtils:
 
     @classmethod
     def serialize_message(cls, msg: ReliableMessage) -> bytes:
-        info = msg.to_dict()
+        info = msg.to_map()
         #
         #  body
         #

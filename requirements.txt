@@ -29,10 +29,10 @@ udp==2.3.1
 stun==1.0.1
 dmtp==1.0.1
 
-# mkm==2.4.2
-# dkd==2.4.2
-# dimp==2.4.2
-# dimsdk==2.4.2
-# dimplugins==2.4.2
+# mkm==2.4.3
+# dkd==2.4.3
+# dimp==2.4.3
+# dimsdk==2.4.3
+# dimplugins==2.4.3
 
-dimples==1.7.2
+dimples==1.7.3

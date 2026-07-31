@@ -143,7 +143,7 @@ class GlobalVariable:
         visa = DocumentUtils.last_visa(documents=docs)
         if visa is not None:
             # refresh visa
-            visa = Document.parse(document=visa.copy_dict())
+            visa = Document.parse(document=visa.copy_map())
             visa.sign(private_key=sign_key)
             await archivist.save_document(document=visa, identifier=current_user)
         await facebook.set_current_user(user=user)

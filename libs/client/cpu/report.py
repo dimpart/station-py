@@ -30,7 +30,7 @@
     Report protocol
 """
 
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 from dimples import ReliableMessage
 from dimples import Content, ReportCommand
@@ -90,7 +90,7 @@ class ReportCommandProcessor(BaseCommandProcessor, Logging):
 
     async def __process_apns(self, content: ReportCommand, msg: ReliableMessage) -> List[Content]:
         # submit device token for APNs
-        info = content.to_dict()
+        info = content.to_map()
         # fix 'terminal'
         terminal = info.get('terminal')
         if terminal is None or terminal == '':
@@ -104,7 +104,7 @@ class ReportCommandProcessor(BaseCommandProcessor, Logging):
             if token is None:
                 # token not found, try to get device
                 info = info.get('device')
-                if isinstance(info, Dict):
+                if isinstance(info, dict):
                     # device info found
                     token = info.get('token')
                 else:

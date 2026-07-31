@@ -54,10 +54,13 @@
     }
 """
 
-from typing import Optional, Any, List, Dict
+from typing import Optional, Any, List
+from typing import Mapping
 
 from dimples import Dictionary
 from dimples import ID, BaseCommand
+
+from ...utils import StrMap
 
 
 class PushAlert(Dictionary):
@@ -112,7 +115,7 @@ class PushAlert(Dictionary):
             return None
         elif isinstance(alert, PushAlert):
             return alert
-        assert isinstance(alert, Dict), 'push alert error: %s' % alert
+        assert isinstance(alert, Mapping), 'push alert error: %s' % alert
         body = alert.get('body')
         if isinstance(body, str):
             return cls(dictionary=alert)
@@ -135,7 +138,7 @@ class PushInfo(Dictionary):
         }
     """
 
-    def __init__(self, dictionary: Dict):
+    def __init__(self, dictionary: StrMap):
         super().__init__(dictionary=dictionary)
         self.__alert: Optional[PushAlert] = None
 
@@ -188,7 +191,7 @@ class PushInfo(Dictionary):
     @classmethod
     def create(cls, alert: PushAlert, sound: str = None, badge: int = 0, category: str = None):  # -> PushInfo:
         info = {
-            'alert': alert.to_dict(),
+            'alert': alert.to_map(),
         }
         if sound is not None:
             info['sound'] = sound
@@ -204,9 +207,9 @@ class PushInfo(Dictionary):
             return None
         elif isinstance(info, PushInfo):
             return info
-        assert isinstance(info, Dict), 'push info error: %s' % info
+        assert isinstance(info, Mapping), 'push info error: %s' % info
         alert = info.get('alert')
-        if isinstance(alert, Dict):
+        if isinstance(alert, Mapping):
             return cls(dictionary=info)
         content = info.get('content')
         if isinstance(content, str):
@@ -226,7 +229,7 @@ class PushItem(Dictionary):
         }
     """
 
-    def __init__(self, dictionary: Dict, receiver: ID = None, aps: PushInfo = None):
+    def __init__(self, dictionary: StrMap, receiver: ID = None, aps: PushInfo = None):
         super().__init__(dictionary=dictionary)
         self.__receiver = receiver
         self.__aps = aps
@@ -247,7 +250,7 @@ class PushItem(Dictionary):
         if aps is None:
             dictionary = self.get(key='aps')
             if dictionary is None:
-                dictionary = self.to_dict()
+                dictionary = self.to_map()
             aps = PushInfo.parse(info=dictionary)
             assert aps is not None, 'push info error: %s' % dictionary
             self.__aps = aps
@@ -264,7 +267,7 @@ class PushItem(Dictionary):
         aps = PushInfo.create(alert=alert, sound=sound, badge=badge)
         item = {
             'receiver': str(receiver),
-            'aps': aps.to_dict(),
+            'aps': aps.to_map(),
         }
         return cls(dictionary=item, receiver=receiver, aps=aps)
 
@@ -274,7 +277,7 @@ class PushItem(Dictionary):
             return None
         elif isinstance(item, PushItem):
             return item
-        assert isinstance(item, Dict), 'push item error: %s' % item
+        assert isinstance(item, Mapping), 'push item error: %s' % item
         receiver = ID.parse(identifier=item.get('receiver'))
         info = item.get('aps')
         if info is None:
@@ -284,7 +287,7 @@ class PushItem(Dictionary):
             return cls(dictionary=item, receiver=receiver, aps=aps)
 
     @classmethod
-    def convert(cls, array: List[Dict]):  # -> List[PushItem]:
+    def convert(cls, array: List[StrMap]):  # -> List[PushItem]:
         items = []
         for item in array:
             pi = cls.parse(item=item)
@@ -297,7 +300,7 @@ class PushItem(Dictionary):
         array = []
         for item in items:
             assert isinstance(item, PushItem), 'push item error: %s' % item
-            info = item.to_dict()
+            info = item.to_map()
             array.append(info)
         return array
 
@@ -322,7 +325,7 @@ class PushCommand(BaseCommand):
 
     PUSH = 'push'
 
-    def __init__(self, content: Dict[str, Any] = None, items: List[PushItem] = None):
+    def __init__(self, content: StrMap = None, items: List[PushItem] = None):
         if content is None:
             # create with names
             super().__init__(cmd=PushCommand.PUSH)
@@ -341,7 +344,7 @@ class PushCommand(BaseCommand):
             array = self.get('items')
             if array is None:
                 # check for single push item
-                info = self.to_dict()
+                info = self.to_map()
                 single = PushItem.parse(item=info)
                 if single is not None:
                     array = [single]

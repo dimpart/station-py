@@ -30,9 +30,11 @@
     Search users with keywords
 """
 
-from typing import Optional, Union, Any, Dict, List
+from typing import Optional, Union, List
 
 from dimples import ID, Command, BaseCommand
+
+from ...utils import StrMap
 
 
 class SearchCommand(BaseCommand):
@@ -59,7 +61,7 @@ class SearchCommand(BaseCommand):
 
     ONLINE_USERS = 'users'
 
-    def __init__(self, content: Optional[Dict[str, Any]] = None,
+    def __init__(self, content: Optional[StrMap] = None,
                  keywords: str = None, users: List[ID] = None):
         if content is None:
             super().__init__(cmd=SearchCommand.SEARCH)
@@ -144,7 +146,7 @@ class SearchCommand(BaseCommand):
     def respond(cls, request: Command, keywords: str, users: List[ID]):
         cmd = SearchCommand(keywords=keywords, users=users)
         # extra info
-        info = request.copy_dict()
+        info = request.copy_map()
         info.pop('type', None)
         info.pop('sn', None)
         info.pop('time', None)

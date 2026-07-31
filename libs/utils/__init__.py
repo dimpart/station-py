@@ -36,6 +36,8 @@
 from startrek.skywalker import Runnable, Daemon
 # from ipx import Notification, NotificationObserver, NotificationCenter as DefaultNotificationCenter
 
+from dimples.utils import StrMap, MutableStrMap
+
 from dimples.utils import Singleton, Runner
 from dimples.utils import Path
 from dimples.utils import File, TextFile, JSONFile
@@ -71,6 +73,8 @@ __all__ = [
     'Runnable', 'Runner',
     'Daemon',
     # 'Notification', 'NotificationObserver', 'NotificationCenter',
+
+    'StrMap', 'MutableStrMap',
 
     'Singleton',
     'Path',
