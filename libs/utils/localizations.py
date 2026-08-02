@@ -23,8 +23,9 @@
 # SOFTWARE.
 # ==============================================================================
 
-from typing import Optional, Union, Dict
+from typing import Optional, Union
 
+from dimples.utils import StringPairing
 from dimples import Visa
 from dimples.database.dos.base import template_replace
 
@@ -80,13 +81,13 @@ class Locale:
     def from_visa(cls, visa: Visa):  # -> Optional[Locale]:
         # get from 'app.language'
         app = visa.get_property(name='app')
-        if isinstance(app, Dict):
+        if isinstance(app, dict):
             language = app.get('language')
             if language is not None and len(language) > 0:
                 return Locale.parse(locale=language)
         # get from 'sys.locale'
         sys = visa.get_property(name='sys')
-        if isinstance(sys, Dict):
+        if isinstance(sys, dict):
             locale = sys.get('locale')
             if locale is not None and len(locale) > 0:
                 return Locale.parse(locale=locale)
@@ -94,18 +95,17 @@ class Locale:
 
 class Translations:
 
-    def __init__(self, dictionary: Dict[str, str]):
+    def __init__(self, dictionary: StringPairing):
         super().__init__()
         self.__dictionary = dictionary
 
-    def translate(self, text: str, params: Dict[str, str] = None) -> str:
+    def translate(self, text: str, params: StringPairing = None) -> str:
         result = self.__dictionary.get(text)
         if result is None:
             # not found, use the text directly
             result = text
         if params is not None:
-            for key in params:
-                value = params[key]
+            for key, value in params.items():
                 result = template_replace(template=result, key=key, value=value)
         return result
 
@@ -146,11 +146,11 @@ class Translations:
         return trans
 
     @classmethod
-    def set_dictionary(cls, dictionary: Dict[str, str], locale: Union[str, Locale]):
+    def set_dictionary(cls, dictionary: StringPairing, locale: Union[str, Locale]):
         if isinstance(locale, Locale):
             locale = str(locale)
         s_dictionaries[locale] = dictionary
 
 
-s_dictionaries = {}  # name -> Dict[str, str]
+s_dictionaries = {}  # name -> Mapping[str, str]
 s_translations = {}  # name -> Translations

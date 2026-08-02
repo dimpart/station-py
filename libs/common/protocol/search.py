@@ -154,6 +154,6 @@ class SearchCommand(BaseCommand):
         info.pop('command', None)
         info.pop('keywords', None)
         info.pop('users', None)
-        for key in info:
-            cmd[key] = info[key]
+        for key, value in info.items():
+            cmd[key] = value
         return cmd

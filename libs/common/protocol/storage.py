@@ -35,11 +35,13 @@
     Storage data (may be encrypted) by title for VIP users
 """
 
-from typing import Optional, Any, Dict
+from typing import Optional
 
 from dimples import base64_encode, base64_decode, json_decode, utf8_decode
 from dimples import DecryptKey, SymmetricKey, ID
 from dimples import BaseCommand
+
+from ...utils import StrMap
 
 
 class StorageCommand(BaseCommand):
@@ -65,7 +67,7 @@ class StorageCommand(BaseCommand):
     CONTACTS = 'contacts'
     PRIVATE_KEY = 'private_key'
 
-    def __init__(self, content: Optional[Dict[str, Any]] = None,
+    def __init__(self, content: Optional[StrMap] = None,
                  title: Optional[str] = None):
         if content is None:
             super().__init__(cmd=StorageCommand.STORAGE)

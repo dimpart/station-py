@@ -21,13 +21,13 @@ gevent     # 21.8.0
 # sysv-ipc   # 1.1.0
 
 # ipx==0.2.2
-aiou==1.1.0
+aiou==1.1.1
 
-startrek==2.3.1
-tcp==2.3.1
-udp==2.3.1
-stun==1.0.1
-dmtp==1.0.1
+startrek==2.3.2
+tcp==2.3.2
+udp==2.3.2
+stun==1.1.0
+dmtp==1.1.0
 
 # mkm==2.4.3
 # dkd==2.4.3
@@ -35,4 +35,4 @@ dmtp==1.0.1
 # dimsdk==2.4.3
 # dimplugins==2.4.3
 
-dimples==1.7.3
+dimples==1.7.4

@@ -23,7 +23,7 @@
 # SOFTWARE.
 # ==============================================================================
 
-from typing import List, Optional
+from typing import Optional, List
 
 from dimples import json_encode, json_decode, utf8_encode, utf8_decode
 from dimples import ID
@@ -64,7 +64,7 @@ class DeviceCache(RedisCache):
             js = utf8_decode(data=value)
             assert js is not None, 'failed to decode string: %s' % value
             array = json_decode(string=js)
-            assert isinstance(array, List), 'devices error: %s' % value
+            assert isinstance(array, list), 'devices error: %s' % value
             return DeviceInfo.convert(array=array)
 
     async def save_devices(self, devices: List[DeviceInfo], identifier: ID) -> bool:

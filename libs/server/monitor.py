@@ -26,7 +26,8 @@
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Tuple, List, Dict
+from typing import Optional, Union, Tuple, List
+from typing import Mapping
 
 from dimples import DateTime
 from dimples import ID
@@ -53,7 +54,7 @@ from .emitter import ServerEmitter
 class Recorder(ABC):
 
     @abstractmethod
-    def extract(self) -> Union[List, Dict]:
+    def extract(self) -> Union[List, Mapping]:
         """ get and clear records """
         raise NotImplementedError(
             f'Not implemented: {type(self).__module__}.{type(self).__name__}.extract()'
@@ -237,7 +238,7 @@ class ActiveRecorder(Recorder):
         self.__users.add(record)
 
     # Override
-    def extract(self) -> Union[List, Dict]:
+    def extract(self) -> Union[List, Mapping]:
         users = self.__users
         self.__users = set()
         array = []
@@ -304,7 +305,7 @@ class MessageRecorder(Recorder):
             record['C'] = 1 if count is None else count + 1
 
     # Override
-    def extract(self) -> Union[List, Dict]:
+    def extract(self) -> Union[List, Mapping]:
         array = self.__data
         self.__data = []
         return array
@@ -404,7 +405,7 @@ async def _get_relay(identifier: ID) -> Optional[str]:
             continue
         # return station id
         station = cmd.station
-        if isinstance(station, Dict):
+        if isinstance(station, dict):
             host = station.get('host')
             port = station.get('port')
             return '%s:%s' % (host, port)
@@ -426,7 +427,7 @@ async def _get_extra(identifier: ID) -> Optional[str]:
     if doc is not None:
         # check app.language
         app = doc.get_property(name='app')
-        if isinstance(app, Dict):
+        if isinstance(app, dict):
             language = app.get('language')
             version = app.get('version')
         else:
@@ -434,7 +435,7 @@ async def _get_extra(identifier: ID) -> Optional[str]:
             version = None
         # check sys.*
         sys = doc.get_property(name='sys')
-        if isinstance(sys, Dict):
+        if isinstance(sys, dict):
             locale = sys.get('locale')
             model = sys.get('model')
             os = sys.get('os')

@@ -36,7 +36,10 @@
 from startrek.skywalker import Runnable, Daemon
 # from ipx import Notification, NotificationObserver, NotificationCenter as DefaultNotificationCenter
 
+from aiou.redis.client import BytesPairing
+
 from dimples.utils import StrMap, MutableStrMap
+from dimples.utils import StringPairing
 
 from dimples.utils import Singleton, Runner
 from dimples.utils import Path
@@ -74,7 +77,10 @@ __all__ = [
     'Daemon',
     # 'Notification', 'NotificationObserver', 'NotificationCenter',
 
+    'BytesPairing',
+
     'StrMap', 'MutableStrMap',
+    'StringPairing',
 
     'Singleton',
     'Path',

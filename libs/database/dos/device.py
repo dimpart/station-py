@@ -23,7 +23,7 @@
 # SOFTWARE.
 # ==============================================================================
 
-from typing import Optional, Any, List, Dict
+from typing import Optional, List
 
 from dimples import Converter
 from dimples import DateTime
@@ -31,6 +31,8 @@ from dimples import ID
 from dimples.utils import is_before
 from dimples.database.dos.base import template_replace
 from dimples.database.dos import Storage
+
+from ...utils import StrMap
 
 
 class DeviceInfo:
@@ -70,7 +72,7 @@ class DeviceInfo:
 
     EXPIRES = 3600 * 24 * 90  # device token will be expired after 3 months
 
-    def __init__(self, info: Dict[str, Any]):
+    def __init__(self, info: StrMap):
         super().__init__()
         self.__info = info
 
@@ -125,7 +127,7 @@ class DeviceInfo:
             if value is None:
                 # compact with old version
                 device = self.__info.get('device')
-                if isinstance(device, Dict):
+                if isinstance(device, dict):
                     value = device.get('token')
         return Converter.get_str(value=value, default='')
 
@@ -156,12 +158,12 @@ class DeviceInfo:
     def __repr__(self) -> str:
         return self.to_str()
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> StrMap:
         return self.__info
 
     @classmethod
-    def from_json(cls, info: Dict[str, Any]):  # -> Optional[DeviceInfo]:
-        if isinstance(info, Dict):
+    def from_json(cls, info: StrMap):  # -> Optional[DeviceInfo]:
+        if isinstance(info, dict):
             pass
         elif isinstance(info, str):
             info = {'token': info}
@@ -171,7 +173,7 @@ class DeviceInfo:
         return DeviceInfo(info=info)
 
     @classmethod
-    def convert(cls, array: List[Dict[str, Any]]):  # -> List[DeviceInfo]:
+    def convert(cls, array: List[StrMap]):  # -> List[DeviceInfo]:
         devices = []
         for item in array:
             info = cls.from_json(info=item)
@@ -181,12 +183,12 @@ class DeviceInfo:
         return devices
 
     @classmethod
-    def revert(cls, devices) -> List[Dict[str, Any]]:
+    def revert(cls, devices) -> List[StrMap]:
         array = []
         for item in devices:
             if isinstance(item, DeviceInfo):
                 info = item.to_json()
-            elif isinstance(item, Dict):
+            elif isinstance(item, dict):
                 info = item
             elif isinstance(item, str):
                 info = {'token': str}
@@ -216,7 +218,7 @@ class DeviceStorage(Storage):
     async def get_devices(self, identifier: ID) -> Optional[List[DeviceInfo]]:
         path = self.__devices_path(identifier=identifier)
         array = await self.read_json(path=path)
-        if not isinstance(array, List):
+        if not isinstance(array, list):
             self.error('devices not exists: %s', path)
             return None
         self.info('loaded %d device(s) from: %s', len(array), path)

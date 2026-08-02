@@ -24,7 +24,8 @@
 # ==============================================================================
 
 import threading
-from typing import Dict, Set, Tuple, Optional
+from typing import Optional, Set, Tuple
+from typing import MutableMapping
 
 from aiou.mem import CachePool
 
@@ -69,12 +70,12 @@ class ActiveTable(DataCache):
 
     def __init__(self, config: Config):
         super().__init__(pool_name='session')  # 'active_users' => Set(ID)
-        self._socket_address: Dict[ID, Set[Tuple[str, int]]] = {}  # ID => set(socket_address)
+        self._socket_address: MutableMapping[ID, Set[Tuple[str, int]]] = {}  # ID => set(socket_address)
         self._redis = LoginCache(config=config)
 
     # noinspection PyMethodMayBeStatic
     def show_info(self):
-        print('!!!    active users in memory only !!!')
+        print('!!!      active users in memory only !!!')
 
     def _new_task(self) -> ActTask:
         return ActTask(redis=self._redis,

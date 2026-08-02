@@ -55,7 +55,6 @@
 """
 
 from typing import Optional, Any, List
-from typing import Mapping
 
 from dimples import Dictionary
 from dimples import ID, BaseCommand
@@ -115,7 +114,7 @@ class PushAlert(Dictionary):
             return None
         elif isinstance(alert, PushAlert):
             return alert
-        assert isinstance(alert, Mapping), 'push alert error: %s' % alert
+        assert isinstance(alert, dict), 'push alert error: %s' % alert
         body = alert.get('body')
         if isinstance(body, str):
             return cls(dictionary=alert)
@@ -207,9 +206,9 @@ class PushInfo(Dictionary):
             return None
         elif isinstance(info, PushInfo):
             return info
-        assert isinstance(info, Mapping), 'push info error: %s' % info
+        assert isinstance(info, dict), 'push info error: %s' % info
         alert = info.get('alert')
-        if isinstance(alert, Mapping):
+        if isinstance(alert, dict):
             return cls(dictionary=info)
         content = info.get('content')
         if isinstance(content, str):
@@ -277,7 +276,7 @@ class PushItem(Dictionary):
             return None
         elif isinstance(item, PushItem):
             return item
-        assert isinstance(item, Mapping), 'push item error: %s' % item
+        assert isinstance(item, dict), 'push item error: %s' % item
         receiver = ID.parse(identifier=item.get('receiver'))
         info = item.get('aps')
         if info is None:

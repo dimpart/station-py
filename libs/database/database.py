@@ -29,7 +29,7 @@
 
 """
 
-from typing import Optional, List, Set, Tuple, Dict
+from typing import Optional, List, Set, Tuple
 
 from dimples import SymmetricKey, PrivateKey, SignKey, DecryptKey
 from dimples import ID, Meta, Document
@@ -49,6 +49,8 @@ from dimples.database import GroupHistoryTable
 from dimples.database import GroupKeysTable
 from dimples.database import ReliableMessageTable
 from dimples.database import StationTable
+
+from ..utils import StringPairing
 
 from .dos import DeviceInfo
 
@@ -392,11 +394,11 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         return await self.__cipherkey_table.cache_cipher_key(key=key, sender=sender, receiver=receiver)
 
     # Override
-    async def get_group_keys(self, group: ID, sender: ID) -> Optional[Dict[str, str]]:
+    async def get_group_keys(self, group: ID, sender: ID) -> Optional[StringPairing]:
         return await self.__grp_keys_table.get_group_keys(group=group, sender=sender)
 
     # Override
-    async def save_group_keys(self, group: ID, sender: ID, keys: Dict[str, str]) -> bool:
+    async def save_group_keys(self, group: ID, sender: ID, keys: StringPairing) -> bool:
         return await self.__grp_keys_table.save_group_keys(group=group, sender=sender, keys=keys)
 
     # """

@@ -24,7 +24,7 @@
 # ==============================================================================
 
 import threading
-from typing import Optional, Union, Set, Dict
+from typing import Optional, Union, Set
 
 from aiou.mem import CachePool
 
@@ -35,6 +35,7 @@ from dimples.database import DbTask, DataCache
 
 from .redis import AddressNameCache
 from .dos import AddressNameStorage
+from .dos.ans import AnsMap
 
 
 # noinspection PyAbstractClass
@@ -57,11 +58,11 @@ class AllTask(AnsTask):
         return self.ALL_KEY
 
     # Override
-    async def _read_data(self) -> Optional[Dict[str, ID]]:
+    async def _read_data(self) -> Optional[AnsMap]:
         return await self._dos.load_records()
 
     # Override
-    async def _write_data(self, value: Dict[str, ID]) -> bool:
+    async def _write_data(self, value: AnsMap) -> bool:
         pass
 
 
@@ -133,7 +134,7 @@ class AddressNameTable(DataCache):
                         redis=self._redis, storage=self._dos,
                         mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
-    async def _load_records(self) -> Dict[str, ID]:
+    async def _load_records(self) -> AnsMap:
         task = self._new_all_task()
         records = await task.load()
         return {} if records is None else records
@@ -172,7 +173,7 @@ class AddressNameTable(DataCache):
         #
         task = self._new_all_task()
         all_records = await task.load()
-        if isinstance(all_records, Dict):
+        if isinstance(all_records, dict):
             did = all_records.get(name)
         #
         #   3. update memory cache
@@ -189,14 +190,14 @@ class AddressNameTable(DataCache):
         #
         task = self._new_name_task(identifier=identifier)
         names = await task.load()
-        if isinstance(names, Set):
+        if isinstance(names, set):
             return names
         #
         #  2. load all records
         #
         task = self._new_all_task()
         all_records = await task.load()
-        if isinstance(all_records, Dict):
+        if isinstance(all_records, dict):
             names = get_names(records=all_records, identifier=identifier)
         else:
             names = set()
@@ -208,9 +209,9 @@ class AddressNameTable(DataCache):
         return names
 
 
-def get_names(records: Dict[str, ID], identifier: ID) -> Set[str]:
+def get_names(records: AnsMap, identifier: ID) -> Set[str]:
     strings = set()
-    for key in records:
-        if identifier == records[key]:
-            strings.add(key)
+    for name, did in records.items():
+        if identifier.is_same_as(other=did):
+            strings.add(name)
     return strings

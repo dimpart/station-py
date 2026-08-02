@@ -23,11 +23,17 @@
 # SOFTWARE.
 # ==============================================================================
 
-from typing import Dict
-
 from dimples import ID, ANYONE, EVERYONE, FOUNDER
 
 from dimples.database.dos import Storage
+
+
+try:
+    import collections.abc as abc
+    AnsMap = abc.MutableMapping[str, ID]
+except TypeError:
+    import typing
+    AnsMap = typing.MutableMapping[str, ID]
 
 
 class AddressNameStorage(Storage):
@@ -46,14 +52,14 @@ class AddressNameStorage(Storage):
     def __ans_path(self) -> str:
         return self.protected_path(self.ans_path)
 
-    async def load_records(self) -> Dict[str, ID]:
+    async def load_records(self) -> AnsMap:
         path = self.__ans_path()
         self.info('Loading ANS records from: %s' % path)
         records = {}
         dictionary = await self.read_json(path=path)
         if dictionary is not None:
-            for name in dictionary:
-                value = dictionary[name]
+            assert isinstance(dictionary, dict), f'ANS record error: {dictionary}'
+            for name, value in dictionary.items():
                 # convert ID
                 uid = ID.parse(identifier=value)
                 if uid is None:
@@ -70,12 +76,13 @@ class AddressNameStorage(Storage):
         records['founder'] = FOUNDER  # 'Albert Moky'
         return records
 
-    async def save_records(self, records: Dict[str, ID]) -> bool:
+    async def save_records(self, records: AnsMap) -> bool:
         dictionary = {}
         # revert ID
-        for name in records:
-            uid = records[name]
-            if uid is not None:
+        for name, uid in records.items():
+            if uid is None:
+                assert False, f'ANS record error: "{name}" => {uid}'
+            else:
                 dictionary[name] = str(uid)
         path = self.__ans_path()
         self.info('Saving %d ANS records into: %s' % (len(records), path))

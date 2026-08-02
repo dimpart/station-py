@@ -78,7 +78,7 @@ class DeviceLoader:
     @property
     async def devices(self) -> List[DeviceInfo]:
         array = await Storage.read_json(path=self.path)
-        if not isinstance(array, List):
+        if not isinstance(array, list):
             array = []
         Log.info('loaded %d device(s) from: %s' % (len(array), path))
         return DeviceInfo.convert(array=array)
