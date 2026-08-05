@@ -35,4 +35,4 @@ dmtp==1.1.0
 # dimsdk==2.4.3
 # dimplugins==2.4.3
 
-dimples==1.7.4
+dimples==1.7.5

@@ -38,7 +38,7 @@ from dimples import Command, LoginCommand, GroupCommand, ResetCommand
 from dimples import BlockCommand, MuteCommand
 from dimples import AccountDBI, MessageDBI, SessionDBI
 from dimples import ProviderInfo, StationInfo
-from dimples import MetaUtils
+from dimples import IDUtils, MetaUtils
 from dimples.utils import Config
 from dimples.database import PrivateKeyTable
 from dimples.database import CipherKeyTable
@@ -250,7 +250,7 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
             return False
         if group is None:
             # check for personal message
-            return sender in array
+            return IDUtils.contains(sender, array)
         else:
             # check for group message
             return group in array
@@ -278,7 +278,7 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
             return False
         if group is None:
             # check for personal message
-            return sender in array
+            return IDUtils.contains(sender, array)
         else:
             # check for group message
             return group in array

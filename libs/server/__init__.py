@@ -38,9 +38,10 @@ from dimples.server import ServerChecker
 
 from ..common import CommonArchivist as ServerArchivist
 
+from .filters import FilterManager, BlockFilter, MuteFilter
+
 from .session import ServerSession
 from .messenger import ServerMessenger
-from .messenger import FilterManager, BlockFilter, MuteFilter
 from .packer import ServerPacker
 from .processor import ServerProcessor
 from .processor import ServerProcessorCreator

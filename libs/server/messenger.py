@@ -32,11 +32,8 @@
 
 from typing import Optional, List
 
-from dimples import Singleton
 from dimples import DateTime
-from dimples import EntityType
 from dimples import ReliableMessage
-from dimples import ReceiptCommand
 
 from dimples.common import Session
 from dimples.common import CommonFacebook
@@ -45,7 +42,6 @@ from dimples.common import MessageDBI
 from dimples.server import ServerMessenger as SuperMessenger
 
 from ..utils.mtp import MTPUtils
-from ..database import Database
 
 from .monitor import Monitor
 
@@ -95,107 +91,6 @@ class ServerMessenger(SuperMessenger):
 
     # Override
     async def process_reliable_message(self, msg: ReliableMessage) -> List[ReliableMessage]:
-        if await self._is_blocked(msg=msg):
-            sender = msg.sender
-            receiver = msg.receiver
-            group = msg.group
-            self.warning(msg='user is blocked: %s -> %s (group: %s)' % (sender, receiver, group))
-            facebook = self.facebook
-            nickname = await facebook.get_name(identifier=receiver)
-            if group is None:
-                text = 'Message is blocked by "%s"' % nickname
-            else:
-                grp_name = await facebook.get_name(identifier=group)
-                text = 'Message is blocked by "%s" in group "%s"' % (nickname, grp_name)
-            # response
-            res = ReceiptCommand.create(text=text, envelope=msg.envelope)
-            res.group = group
-            await self.send_content(sender=None, receiver=sender, content=res, priority=1)
-            return []
         monitor = Monitor()
         monitor.message_received(msg=msg)
         return await super().process_reliable_message(msg=msg)
-
-    async def _is_blocked(self, msg: ReliableMessage) -> bool:
-        block_filter = FilterManager().block_filter
-        if block_filter is None:
-            self.warning(msg='block filter not set')
-        else:
-            return await block_filter.is_blocked(msg=msg)
-
-
-"""
-    Filter
-    ~~~~~~
-
-    Filters for delivering message
-"""
-
-
-class BlockFilter:
-
-    def __init__(self, database: Database):
-        super().__init__()
-        self.__database = database
-
-    async def is_blocked(self, msg: ReliableMessage) -> bool:
-        sender = msg.sender
-        receiver = msg.receiver
-        group = msg.group
-        # check block-list
-        db = self.__database
-        return await db.is_blocked(sender=sender, receiver=receiver, group=group)
-
-
-class MuteFilter:
-    """ Filter for Push Notification service """
-
-    def __init__(self, database: Database):
-        super().__init__()
-        self.__database = database
-
-    # Override
-    async def is_muted(self, msg: ReliableMessage) -> bool:
-        if msg.get_bool(key='muted', default=False):
-            return True
-        sender = msg.sender
-        receiver = msg.receiver
-        group = msg.group
-        if sender.type == EntityType.STATION or receiver.type == EntityType.STATION:
-            # mute all messages for stations
-            return True
-        elif sender.type == EntityType.BOT:
-            # mute group message from bot
-            if receiver.is_group or group is not None or 'GF' in msg:
-                return True
-        elif receiver.type == EntityType.BOT:
-            # mute all messages to bots
-            return True
-        # check block-list
-        db = self.__database
-        return await db.is_muted(sender=sender, receiver=receiver, group=group)
-
-
-@Singleton
-class FilterManager:
-
-    def __init__(self):
-        super().__init__()
-        self.__block_filter = None
-        self.__mute_filter = None
-
-    @property
-    def block_filter(self) -> BlockFilter:
-        return self.__block_filter
-
-    @block_filter.setter
-    def block_filter(self, delegate: BlockFilter):
-        self.__block_filter = delegate
-
-    @property
-    def mute_filter(self) -> MuteFilter:
-        return self.__mute_filter
-
-    @mute_filter.setter
-    def mute_filter(self, delegate: MuteFilter):
-        self.__mute_filter = delegate

@@ -69,9 +69,10 @@ class ServerSession(SuperSession):
 
     # Override
     def set_did(self, identifier: ID) -> bool:
-        old = self.identifier
+        old_id = self.identifier
         if super().set_did(identifier=identifier):
-            coro = session_change_id(session=self, new_id=identifier, old_id=old)
+            new_id = self.identifier  # Dressed ID with terminal (device)
+            coro = session_change_id(session=self, new_id=new_id, old_id=old_id)
             Runner.async_task(coro=coro)
             return True
 

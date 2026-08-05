@@ -35,6 +35,7 @@ import time
 from typing import Optional, Tuple, List
 
 from dimples import ID, ContentType, Envelope, ReliableMessage
+from dimples import MessageUtils
 from dimples.server import PushService, BadgeKeeper
 
 from ..utils import Logging, Singleton
@@ -44,7 +45,7 @@ from ..common.protocol import PushCommand, PushItem
 
 from .cpu import AnsCommandProcessor
 
-from .messenger import FilterManager
+from .filters import FilterManager
 from .emitter import ServerEmitter
 from .push_intl import PushTmpl
 
@@ -126,8 +127,8 @@ class DefaultPushService(PushService, Logging):
     async def __build_push_item(self, msg: ReliableMessage, badge_keeper: BadgeKeeper) -> Optional[PushItem]:
         # 1. check original sender, group & msg type
         env = self._origin_envelope(msg=msg)
-        receiver = msg.receiver
-        sender = env.sender
+        sender = MessageUtils.real_sender(msg=msg)
+        receiver = MessageUtils.real_receiver(msg=msg)
         group = env.group
         if group is None and 'GF' in env:
             group = ID.parse(identifier='Hidden@anywhere')
