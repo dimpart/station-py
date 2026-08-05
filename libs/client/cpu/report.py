@@ -75,6 +75,8 @@ class ReportCommandProcessor(BaseCommandProcessor, Logging):
         identifier = session.identifier
         if identifier is not None:
             return identifier.terminal
+        else:
+            return session.device
 
     # Override
     async def process_content(self, content: Content, r_msg: ReliableMessage) -> List[Content]:
@@ -90,7 +92,8 @@ class ReportCommandProcessor(BaseCommandProcessor, Logging):
 
     async def __process_apns(self, content: ReportCommand, msg: ReliableMessage) -> List[Content]:
         # submit device token for APNs
-        info = content.to_map()
+        info = content.copy_map()
+        info['did'] = str(msg.sender)
         # fix 'terminal'
         terminal = info.get('terminal')
         if terminal is None or terminal == '':
@@ -110,9 +113,12 @@ class ReportCommandProcessor(BaseCommandProcessor, Logging):
                 else:
                     self.error(msg='device info not found: %s' % self)
                     return []
-        if token is None or len(token) == 0:
-            return []
         sender = msg.sender
+        if token is None or len(token) == 0:
+            self.error('device token not found: %s, %s', sender, info)
+            return []
+        else:
+            self.info('saving device with token: %s, %s', sender, info)
         device = DeviceInfo.from_json(info=info)
         assert device is not None, 'failed to parse device info: %s' % info
         db = self.database

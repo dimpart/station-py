@@ -70,7 +70,7 @@ class DeviceInfo:
             }
     """
 
-    EXPIRES = 3600 * 24 * 90  # device token will be expired after 3 months
+    EXPIRES = 3600 * 24 * 183  # device token will be expired after half a year
 
     def __init__(self, info: StrMap):
         super().__init__()
@@ -81,6 +81,9 @@ class DeviceInfo:
         when = self.time
         if when is None:
             return True
+        elif self.channel == 'firebase':
+            # TODO: timeout for firebase
+            return False
         now = DateTime.current_timestamp()
         return when < (now - self.EXPIRES)
 
@@ -244,8 +247,8 @@ class DeviceStorage(Storage):
 def insert_device(info: DeviceInfo, devices: List[DeviceInfo]) -> Optional[List[DeviceInfo]]:
     index = find_device(info=info, devices=devices)
     if index < 0:
-        # keep only last three records
-        while len(devices) > 2:
+        # keep only last eight records
+        while len(devices) > 7:
             devices.pop()
     elif is_before(old_time=devices[index].time, new_time=info.time):
         # device info expired, drop it
