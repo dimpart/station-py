@@ -216,7 +216,7 @@ class ActiveEvent(Event, Logging):
         assert isinstance(recorder, ActiveRecorder), f'recorder error: {recorder}'
         sender = self.__sender
         remote = self.__remote_address
-        recorder.add_user(identifier=sender, remote_address=remote)
+        recorder.add_user(user=sender, remote_address=remote)
         # TODO: temporary notification, remove after too many users online
         online = self.__online
         when = self.__when
@@ -233,8 +233,8 @@ class ActiveRecorder(Recorder):
         super().__init__()
         self.__users = set()
 
-    def add_user(self, identifier: ID, remote_address: Tuple[str, int]):
-        record = (identifier, remote_address[0])
+    def add_user(self, user: ID, remote_address: Tuple[str, int]):
+        record = (user, remote_address[0])
         self.__users.add(record)
 
     # Override

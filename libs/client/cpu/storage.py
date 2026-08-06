@@ -46,25 +46,25 @@ class StorageCommandProcessor(BaseCommandProcessor):
     @property
     def facebook(self) -> CommonFacebook:
         barrack = super().facebook
-        assert isinstance(barrack, CommonFacebook), 'facebook error: %s' % barrack
+        assert isinstance(barrack, CommonFacebook), f'facebook error: {barrack}'
         return barrack
 
     @property
     def database(self) -> Database:
         db = self.facebook.barrack.database
-        assert isinstance(db, Database), 'database error: %s' % db
+        assert isinstance(db, Database), f'database error: {db}'
         return db
 
     # Override
     async def process_content(self, content: Content, r_msg: ReliableMessage) -> List[Content]:
-        assert isinstance(content, StorageCommand), 'command error: %s' % content
+        assert isinstance(content, StorageCommand), f'command error: {content}'
         sender = r_msg.sender
         title = content.title
         if title == StorageCommand.CONTACTS:
             db = self.database
             if content.data is None and 'contacts' not in content:
                 # query contacts, load it
-                stored = await db.get_contacts_command(identifier=sender)
+                stored = await db.get_contacts_command(user=sender)
                 # response
                 if stored is None:
                     text = 'Contacts not found.'
@@ -79,7 +79,7 @@ class StorageCommandProcessor(BaseCommandProcessor):
                     return [stored]
             else:
                 # upload contacts, save it
-                if await db.save_contacts_command(content=content, identifier=sender):
+                if await db.save_contacts_command(content=content, user=sender):
                     text = 'Contacts received.'
                     return self._respond_receipt(text=text, content=content, envelope=r_msg.envelope, extra={
                         'template': 'Contacts received: ${did}.',

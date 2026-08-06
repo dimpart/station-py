@@ -46,23 +46,23 @@ class MuteCommandProcessor(BaseCommandProcessor):
     @property
     def facebook(self) -> CommonFacebook:
         barrack = super().facebook
-        assert isinstance(barrack, CommonFacebook), 'facebook error: %s' % barrack
+        assert isinstance(barrack, CommonFacebook), f'facebook error: {barrack}'
         return barrack
 
     @property
     def database(self) -> Database:
         db = self.facebook.barrack.database
-        assert isinstance(db, Database), 'database error: %s' % db
+        assert isinstance(db, Database), f'database error: {db}'
         return db
 
     # Override
     async def process_content(self, content: Content, r_msg: ReliableMessage) -> List[Content]:
-        assert isinstance(content, MuteCommand), 'mute command error: %s' % content
+        assert isinstance(content, MuteCommand), f'mute command error: {content}'
         sender = r_msg.sender
         db = self.database
         if 'list' in content:
             # upload mute-list, save it
-            if await db.save_mute_command(content=content, identifier=sender):
+            if await db.save_mute_command(content=content, user=sender):
                 text = 'Mute received.'
                 return self._respond_receipt(text=text, content=content, envelope=r_msg.envelope, extra={
                     'template': 'Mute command received: ${did}.',
@@ -80,12 +80,12 @@ class MuteCommandProcessor(BaseCommandProcessor):
                 })
         else:
             # query mute-list, load it
-            stored = await db.get_mute_command(identifier=sender)
+            stored = await db.get_mute_command(user=sender)
             if stored is not None:
                 # response the stored mute command directly
                 return [stored]
             else:
-                # return TextContent.new(text='Sorry, mute-list of %s not found.' % sender)
+                # return TextContent.new(text=f'Sorry, mute-list of {sender} not found.')
                 # TODO: here should response an empty HistoryCommand: 'mute'
                 res = BaseCommand(cmd=MuteCommand.MUTE)
                 res['list'] = []

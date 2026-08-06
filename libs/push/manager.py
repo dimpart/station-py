@@ -54,7 +54,7 @@ class PushNotificationClient(Runner, Logging):
         """
 
         @abstractmethod
-        async def get_devices(self, identifier: ID) -> Optional[List[DeviceInfo]]:
+        async def get_devices(self, user: ID) -> Optional[List[DeviceInfo]]:
             """ get devices with token in hex format """
             pass
 
@@ -130,7 +130,7 @@ class PushNotificationClient(Runner, Logging):
         return True
 
     async def __push(self, aps: PushInfo, receiver: ID, mta: Optional[str]) -> bool:
-        devices = await self.delegate.get_devices(identifier=receiver)
+        devices = await self.delegate.get_devices(user=receiver)
         if devices is None or len(devices) == 0:
             self.warning('cannot get device token for user %s', receiver)
             return False
