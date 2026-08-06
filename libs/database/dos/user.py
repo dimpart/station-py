@@ -51,20 +51,20 @@ class UserStorage(SuperStorage):
         print('!!!      block cmd path: %s' % path4)
         print('!!!       mute cmd path: %s' % path5)
 
-    def __contacts_command_path(self, identifier: ID) -> str:
+    def __contacts_command_path(self, user: ID) -> str:
         path = self.protected_path(self.contacts_command_path)
-        return template_replace(path, 'ADDRESS', str(identifier.address))
+        return template_replace(path, 'ADDRESS', str(user.address))
 
-    async def save_contacts_command(self, content: Command, identifier: ID) -> bool:
+    async def save_contacts_command(self, content: Command, user: ID) -> bool:
         assert content is not None, 'contacts command cannot be empty'
-        path = self.__contacts_command_path(identifier=identifier)
-        self.info('Saving contacts command into: %s' % path)
+        path = self.__contacts_command_path(user=user)
+        self.info('Saving contacts command into: %s', path)
         info = content.to_map()
         return await self.write_json(container=info, path=path)
 
-    async def get_contacts_command(self, identifier: ID) -> Optional[Command]:
-        path = self.__contacts_command_path(identifier=identifier)
-        self.info('Loading stored contacts command from: %s' % path)
+    async def get_contacts_command(self, user: ID) -> Optional[Command]:
+        path = self.__contacts_command_path(user=user)
+        self.info('Loading stored contacts command from: %s', path)
         dictionary = await self.read_json(path=path)
         if dictionary is not None:
             return Content.parse(content=dictionary)  # -> StorageCommand
@@ -77,20 +77,20 @@ class UserStorage(SuperStorage):
     """
     block_command_path = '{PROTECTED}/{ADDRESS}/block_stored.js'
 
-    def __block_command_path(self, identifier: ID) -> str:
+    def __block_command_path(self, user: ID) -> str:
         path = self.protected_path(self.block_command_path)
-        return template_replace(path, 'ADDRESS', str(identifier.address))
+        return template_replace(path, 'ADDRESS', str(user.address))
 
-    async def save_block_command(self, content: BlockCommand, identifier: ID) -> bool:
+    async def save_block_command(self, content: BlockCommand, user: ID) -> bool:
         assert content is not None, 'block command cannot be empty'
-        path = self.__block_command_path(identifier=identifier)
-        self.info('Saving block command into: %s' % path)
+        path = self.__block_command_path(user=user)
+        self.info('Saving block command into: %s', path)
         info = content.to_map()
         return await self.write_json(container=info, path=path)
 
-    async def get_block_command(self, identifier: ID) -> Optional[BlockCommand]:
-        path = self.__block_command_path(identifier=identifier)
-        self.info('Loading stored block command from: %s' % path)
+    async def get_block_command(self, user: ID) -> Optional[BlockCommand]:
+        path = self.__block_command_path(user=user)
+        self.info('Loading stored block command from: %s', path)
         dictionary = await self.read_json(path=path)
         if dictionary is not None:
             return BlockCommand(content=dictionary)
@@ -103,20 +103,20 @@ class UserStorage(SuperStorage):
     """
     mute_command_path = '{PROTECTED}/{ADDRESS}/mute_stored.js'
 
-    def __mute_command_path(self, identifier: ID) -> str:
+    def __mute_command_path(self, user: ID) -> str:
         path = self.protected_path(self.mute_command_path)
-        return template_replace(path, 'ADDRESS', str(identifier.address))
+        return template_replace(path, 'ADDRESS', str(user.address))
 
-    async def save_mute_command(self, content: MuteCommand, identifier: ID) -> bool:
+    async def save_mute_command(self, content: MuteCommand, user: ID) -> bool:
         assert content is not None, 'mute command cannot be empty'
-        path = self.__mute_command_path(identifier=identifier)
-        self.info('Saving mute command into: %s' % path)
+        path = self.__mute_command_path(user=user)
+        self.info('Saving mute command into: %s', path)
         info = content.to_map()
         return await self.write_json(container=info, path=path)
 
-    async def get_mute_command(self, identifier: ID) -> Optional[MuteCommand]:
-        path = self.__mute_command_path(identifier=identifier)
-        self.info('Loading stored mute command from: %s' % path)
+    async def get_mute_command(self, user: ID) -> Optional[MuteCommand]:
+        path = self.__mute_command_path(user=user)
+        self.info('Loading stored mute command from: %s', path)
         dictionary = await self.read_json(path=path)
         if dictionary is not None:
             return MuteCommand(content=dictionary)

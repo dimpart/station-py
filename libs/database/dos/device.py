@@ -27,6 +27,7 @@ from typing import Optional, List
 
 from dimples import Converter
 from dimples import DateTime
+from dimples import Dictionary
 from dimples import ID
 from dimples.utils import is_before
 from dimples.database.dos.base import template_replace
@@ -35,7 +36,7 @@ from dimples.database.dos import Storage
 from ...utils import StrMap
 
 
-class DeviceInfo:
+class DeviceInfo(Dictionary):
     """
         Push Notification service
         ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -46,7 +47,7 @@ class DeviceInfo:
         ~~~~~~~
             data format: {
                 "time"         : 123.45,
-                "terminal"     : "HWMRX",
+                "did"          : "[name@]address[/terminal]",
 
                 "title"        : "c2dm",
 
@@ -59,7 +60,7 @@ class DeviceInfo:
         ~~~
             data format: {
                 "time"         : 123.45,
-                "terminal"     : "iPhone9_2",
+                "did"          : "[name@]address[/terminal]",
 
                 "title"        : "apns",
 
@@ -73,8 +74,8 @@ class DeviceInfo:
     EXPIRES = 3600 * 24 * 183  # device token will be expired after half a year
 
     def __init__(self, info: StrMap):
-        super().__init__()
-        self.__info = info
+        super().__init__(dictionary=info)
+        self.__identifier: Optional[ID] = None
 
     @property
     def is_expired(self) -> bool:
@@ -89,47 +90,51 @@ class DeviceInfo:
 
     @property
     def time(self) -> Optional[DateTime]:
-        value = self.__info.get('time')
-        return Converter.get_datetime(value=value, default=None)
+        return self.get_datetime(key='time')
+
+    @property
+    def identifier(self) -> Optional[ID]:
+        did = self.__identifier
+        if did is None:
+            text = self.get('did')
+            did = ID.parse(identifier=text)
+            self.__identifier = did
+        return did
 
     @property
     def terminal(self) -> Optional[str]:
-        value = self.__info.get('terminal')
-        return Converter.get_str(value=value, default='')
+        did = self.identifier
+        if did is not None:
+            return did.terminal
 
     @property
     def title(self) -> Optional[str]:
-        value = self.__info.get('title')
-        return Converter.get_str(value=value, default='')
+        return self.get_str(key='title', default='')
 
     @property
     def platform(self) -> Optional[str]:  # 'iOS'
-        value = self.__info.get('platform')
-        return Converter.get_str(value=value, default='')
+        return self.get_str(key='platform', default='')
 
     @property
     def channel(self) -> Optional[str]:   # 'Firebase'
-        value = self.__info.get('channel')
-        return Converter.get_str(value=value, default=None)
+        return self.get_str(key='channel')
 
     @property
     def topic(self) -> Optional[str]:     # 'chat.dim.sechat'
-        value = self.__info.get('topic')
-        return Converter.get_str(value=value, default=None)
+        return self.get_str(key='topic')
 
     @property
     def sandbox(self) -> Optional[bool]:
-        value = self.__info.get('sandbox')
-        return Converter.get_bool(value=value, default=None)
+        return self.get_str(key='sandbox')
 
     @property
     def token(self) -> str:
-        value = self.__info.get('token')
+        value = self.get('device_token')
         if value is None:
-            value = self.__info.get('device_token')
+            value = self.get('token')
             if value is None:
                 # compact with old version
-                device = self.__info.get('device')
+                device = self.get('device')
                 if isinstance(device, dict):
                     value = device.get('token')
         return Converter.get_str(value=value, default='')
@@ -162,25 +167,32 @@ class DeviceInfo:
         return self.to_str()
 
     def to_json(self) -> StrMap:
-        return self.__info
+        return self.to_map()
 
     @classmethod
     def from_json(cls, info: StrMap):  # -> Optional[DeviceInfo]:
-        if isinstance(info, dict):
-            pass
-        elif isinstance(info, str):
-            info = {'token': info}
-        else:
-            # assert False, f'device info error: {info}'
-            return None
+        # check token
+        token = info.get('device_token')
+        if token is None or token == '':
+            token = info.get('token')
+            if token is None or token == '':
+                return None
+        # OK
         return DeviceInfo(info=info)
 
     @classmethod
     def convert(cls, array: List[StrMap]):  # -> List[DeviceInfo]:
         devices = []
         for item in array:
-            info = cls.from_json(info=item)
-            if info is None:
+            if isinstance(item, dict):
+                info = cls.from_json(info=item)
+            elif isinstance(item, str):
+                # old version
+                info = cls.from_json(info={
+                    'token': item,
+                })
+            else:
+                # error
                 continue
             devices.append(info)
         return devices
@@ -214,12 +226,13 @@ class DeviceStorage(Storage):
         path = self.protected_path(self.devices_path)
         print('!!!        devices path: %s' % path)
 
-    def __devices_path(self, identifier: ID) -> str:
+    def __devices_path(self, user: ID) -> str:
         path = self.protected_path(self.devices_path)
-        return template_replace(path, 'ADDRESS', str(identifier.address))
+        address = str(user.address)
+        return template_replace(path, 'ADDRESS', address)
 
-    async def get_devices(self, identifier: ID) -> Optional[List[DeviceInfo]]:
-        path = self.__devices_path(identifier=identifier)
+    async def get_devices(self, user: ID) -> Optional[List[DeviceInfo]]:
+        path = self.__devices_path(user=user)
         array = await self.read_json(path=path)
         if not isinstance(array, list):
             self.error('devices not exists: %s', path)
@@ -227,21 +240,21 @@ class DeviceStorage(Storage):
         self.info('loaded %d device(s) from: %s', len(array), path)
         return DeviceInfo.convert(array=array)
 
-    async def save_devices(self, devices: List[DeviceInfo], identifier: ID) -> bool:
-        path = self.__devices_path(identifier=identifier)
+    async def save_devices(self, devices: List[DeviceInfo], user: ID) -> bool:
+        path = self.__devices_path(user=user)
         self.info('saving %d device(s) into: %s', len(devices), path)
         return await self.write_json(container=DeviceInfo.revert(devices=devices), path=path)
 
-    async def add_device(self, device: DeviceInfo, identifier: ID) -> bool:
+    async def add_device(self, device: DeviceInfo, user: ID) -> bool:
         # get all devices info with ID
-        array = await self.get_devices(identifier=identifier)
+        array = await self.get_devices(user=user)
         if array is None:
             array = [device]
         else:
             array = insert_device(info=device, devices=array)
             if array is None:
                 return False
-        return await self.save_devices(devices=array, identifier=identifier)
+        return await self.save_devices(devices=array, user=user)
 
 
 def insert_device(info: DeviceInfo, devices: List[DeviceInfo]) -> Optional[List[DeviceInfo]]:

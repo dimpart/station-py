@@ -42,16 +42,16 @@ class UserCache(SuperCache):
 
         redis key: 'mkm.user.{ADDRESS}.cmd.contacts'
     """
-    def __contacts_command_cache_name(self, identifier: ID) -> str:
-        address = str(identifier.address)
+    def __contacts_command_cache_name(self, user: ID) -> str:
+        address = str(user.address)
         return '%s.%s.%s.cmd.contacts' % (self.db_name, self.tbl_name, address)
 
-    async def save_contacts_command(self, content: Command, identifier: ID) -> bool:
-        key = self.__contacts_command_cache_name(identifier=identifier)
+    async def save_contacts_command(self, content: Command, user: ID) -> bool:
+        key = self.__contacts_command_cache_name(user=user)
         return await self.__save_command(key=key, content=content)
 
-    async def get_contacts_command(self, identifier: ID) -> Optional[Command]:
-        key = self.__contacts_command_cache_name(identifier=identifier)
+    async def get_contacts_command(self, user: ID) -> Optional[Command]:
+        key = self.__contacts_command_cache_name(user=user)
         dictionary = await self.__load_command(key=key)
         if dictionary is not None:
             return Content.parse(content=dictionary)  # -> StorageCommand
@@ -68,7 +68,7 @@ class UserCache(SuperCache):
             return None
         js = utf8_decode(data=value)
         dictionary = json_decode(string=js)
-        assert dictionary is not None, 'cmd error: %s' % value
+        assert dictionary is not None, f'cmd error: {value}'
         return dictionary
 
     """
@@ -77,16 +77,16 @@ class UserCache(SuperCache):
 
         redis key: 'mkm.user.{ADDRESS}.cmd.block'
     """
-    def __block_command_cache_name(self, identifier: ID) -> str:
-        address = str(identifier.address)
+    def __block_command_cache_name(self, user: ID) -> str:
+        address = str(user.address)
         return '%s.%s.%s.cmd.block' % (self.db_name, self.tbl_name, address)
 
-    async def save_block_command(self, content: BlockCommand, identifier: ID) -> bool:
-        key = self.__block_command_cache_name(identifier=identifier)
+    async def save_block_command(self, content: BlockCommand, user: ID) -> bool:
+        key = self.__block_command_cache_name(user=user)
         return await self.__save_command(key=key, content=content)
 
-    async def get_block_command(self, identifier: ID) -> Optional[BlockCommand]:
-        key = self.__block_command_cache_name(identifier=identifier)
+    async def get_block_command(self, user: ID) -> Optional[BlockCommand]:
+        key = self.__block_command_cache_name(user=user)
         dictionary = await self.__load_command(key=key)
         if dictionary is not None:
             return BlockCommand(content=dictionary)
@@ -97,16 +97,16 @@ class UserCache(SuperCache):
 
         redis key: 'mkm.user.{ADDRESS}.cmd.mute'
     """
-    def __mute_command_cache_name(self, identifier: ID) -> str:
-        address = str(identifier.address)
+    def __mute_command_cache_name(self, user: ID) -> str:
+        address = str(user.address)
         return '%s.%s.%s.cmd.mute' % (self.db_name, self.tbl_name, address)
 
-    async def save_mute_command(self, content: MuteCommand, identifier: ID) -> bool:
-        key = self.__mute_command_cache_name(identifier=identifier)
+    async def save_mute_command(self, content: MuteCommand, user: ID) -> bool:
+        key = self.__mute_command_cache_name(user=user)
         return await self.__save_command(key=key, content=content)
 
-    async def get_mute_command(self, identifier: ID) -> Optional[MuteCommand]:
-        key = self.__mute_command_cache_name(identifier=identifier)
+    async def get_mute_command(self, user: ID) -> Optional[MuteCommand]:
+        key = self.__mute_command_cache_name(user=user)
         dictionary = await self.__load_command(key=key)
         if dictionary is not None:
             return MuteCommand(content=dictionary)

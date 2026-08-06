@@ -32,13 +32,14 @@
 from typing import Optional, List, Set, Tuple
 
 from dimples import SymmetricKey, PrivateKey, SignKey, DecryptKey
-from dimples import ID, Meta, Document
+from dimples import ID, Meta, Document, Visa
 from dimples import ReliableMessage
 from dimples import Command, LoginCommand, GroupCommand, ResetCommand
 from dimples import BlockCommand, MuteCommand
 from dimples import AccountDBI, MessageDBI, SessionDBI
 from dimples import ProviderInfo, StationInfo
-from dimples import IDUtils, MetaUtils
+from dimples import IDUtils, MetaUtils, DocumentUtils
+from dimples import CommandMessageUtils
 from dimples.utils import Config
 from dimples.database import PrivateKeyTable
 from dimples.database import CipherKeyTable
@@ -50,6 +51,7 @@ from dimples.database import GroupKeysTable
 from dimples.database import ReliableMessageTable
 from dimples.database import StationTable
 
+from ..utils import Logging
 from ..utils import StringPairing
 
 from .dos import DeviceInfo
@@ -61,7 +63,7 @@ from .t_user import UserTable
 from .t_active import ActiveTable
 
 
-class Database(AccountDBI, MessageDBI, SessionDBI):
+class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
 
     def __init__(self, config: Config):
         super().__init__()
@@ -116,18 +118,22 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
 
     # Override
     async def save_private_key(self, key: PrivateKey, user: ID, key_type: str = 'M') -> bool:
+        user = user.without_terminal()  # Naked ID
         return await self.__private_table.save_private_key(key=key, user=user, key_type=key_type)
 
     # Override
     async def private_keys_for_decryption(self, user: ID) -> List[DecryptKey]:
+        user = user.without_terminal()  # Naked ID
         return await self.__private_table.private_keys_for_decryption(user=user)
 
     # Override
     async def private_key_for_signature(self, user: ID) -> Optional[SignKey]:
+        user = user.without_terminal()  # Naked ID
         return await self.__private_table.private_key_for_signature(user=user)
 
     # Override
     async def private_key_for_visa_signature(self, user: ID) -> Optional[SignKey]:
+        user = user.without_terminal()  # Naked ID
         return await self.__private_table.private_key_for_visa_signature(user=user)
 
     """
@@ -138,19 +144,24 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         redis key: 'mkm.meta.{ADDRESS}'
     """
 
-    # noinspection PyMethodMayBeStatic
     async def _verify_meta(self, meta: Meta, identifier: ID) -> bool:
         if MetaUtils.match_id(identifier=identifier, meta=meta):
             return True
-        raise ValueError('meta not match ID: %s' % identifier)
+        else:
+            self.error('meta not match: %s => %s', identifier, meta)
+            return False
 
     # Override
     async def save_meta(self, meta: Meta, identifier: ID) -> bool:
+        identifier = identifier.without_terminal()  # Naked ID
+        # check meta with ID
         if await self._verify_meta(meta=meta, identifier=identifier):
+            # OK, save it
             return await self.__meta_table.save_meta(meta=meta, identifier=identifier)
 
     # Override
     async def get_meta(self, identifier: ID) -> Optional[Meta]:
+        identifier = identifier.without_terminal()  # Naked ID
         return await self.__meta_table.get_meta(identifier=identifier)
 
     """
@@ -168,19 +179,64 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         # if document.is_valid:
         #     return True
         meta = await self.get_meta(identifier=identifier)
-        assert meta is not None, 'meta not exists: %s' % identifier
+        assert meta is not None, f'meta not exists: {identifier}'
         if document.verify(public_key=meta.public_key):
             return True
-        raise ValueError('document invalid: %s' % identifier)
+        else:
+            self.error('document error: %s => %s', identifier, document)
+            return False
 
     # Override
     async def save_document(self, document: Document, identifier: ID) -> bool:
+        # check did
+        did = DocumentUtils.get_document_id(document=document)
+        if did is None:
+            self.warning('set id for document: %s, %s', identifier, document)
+            document['did'] = str(identifier)
+        elif not did.is_same_as(other=identifier):
+            self.error('document id not match: %s, %s', identifier, document)
+            return False
+        # check terminal
+        terminal = identifier.terminal
+        if terminal is not None:
+            identifier = identifier.without_terminal()  # Naked ID
+            # check terminal in visa document
+            if isinstance(document, Visa):
+                # old = DocumentUtils.get_visa_terminal(document=document)
+                old = document.get('terminal')
+                if old is None or old == '':
+                    document['terminal'] = terminal
+        # elif isinstance(document, Bulletin):
+        #     # check founder of group in bulletin document
+        #     founder = document.founder
+        #     if founder is not None:
+        #         g_meta = await self.get_meta(identifier=identifier)
+        #         f_meta = await self.get_meta(identifier=founder)
+        #         if g_meta is None or f_meta is None or g_meta.public_key != f_meta.public_key:
+        #             raise ValueError(f'founder error: {founder}, group: {identifier}')
+        # check document with meta.key
         if await self._verify_document(document=document, identifier=identifier):
+            # OK, save it
             return await self.__document_table.save_document(document=document, identifier=identifier)
 
     # Override
     async def get_documents(self, identifier: ID) -> List[Document]:
-        return await self.__document_table.get_documents(identifier=identifier)
+        terminal = identifier.terminal
+        if terminal is not None:
+            identifier = identifier.without_terminal()  # Naked ID
+        # load
+        documents = await self.__document_table.get_documents(identifier=identifier)
+        if terminal is not None:
+            # filter for terminal
+            array = []
+            for doc in documents:
+                if isinstance(doc, Visa) and DocumentUtils.get_visa_terminal(document=doc) != terminal:
+                    self.info('skip document: %s "%s", %s', identifier, terminal, doc)
+                    continue
+                # terminal matched
+                array.append(doc)
+            documents = array
+        return documents
 
     async def scan_documents(self) -> List[Document]:
         return await self.__document_table.scan_documents()
@@ -207,10 +263,12 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
 
     # Override
     async def save_contacts(self, contacts: List[ID], user: ID) -> bool:
+        user = user.without_terminal()  # Naked ID
         return await self.__user_table.save_contacts(contacts=contacts, user=user)
 
     # Override
     async def get_contacts(self, user: ID) -> List[ID]:
+        user = user.without_terminal()  # Naked ID
         return await self.__user_table.get_contacts(user=user)
 
     """
@@ -221,11 +279,13 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         redis key: 'mkm.user.{ADDRESS}.cmd.contacts'
     """
 
-    async def save_contacts_command(self, content: Command, identifier: ID) -> bool:
-        return await self.__user_table.save_contacts_command(content=content, identifier=identifier)
+    async def save_contacts_command(self, content: Command, user: ID) -> bool:
+        user = user.without_terminal()  # Naked ID
+        return await self.__user_table.save_contacts_command(content=content, user=user)
 
-    async def get_contacts_command(self, identifier: ID) -> Optional[Command]:
-        return await self.__user_table.get_contacts_command(identifier=identifier)
+    async def get_contacts_command(self, user: ID) -> Optional[Command]:
+        user = user.without_terminal()  # Naked ID
+        return await self.__user_table.get_contacts_command(user=user)
 
     """
         Block-list of User
@@ -235,14 +295,16 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         redis key: 'mkm.user.{ADDRESS}.cmd.block'
     """
 
-    async def save_block_command(self, content: BlockCommand, identifier: ID) -> bool:
-        return await self.__user_table.save_block_command(content=content, identifier=identifier)
+    async def save_block_command(self, content: BlockCommand, user: ID) -> bool:
+        user = user.without_terminal()  # Naked ID
+        return await self.__user_table.save_block_command(content=content, user=user)
 
-    async def get_block_command(self, identifier: ID) -> BlockCommand:
-        return await self.__user_table.get_block_command(identifier=identifier)
+    async def get_block_command(self, user: ID) -> BlockCommand:
+        user = user.without_terminal()  # Naked ID
+        return await self.__user_table.get_block_command(user=user)
 
     async def is_blocked(self, receiver: ID, sender: ID, group: ID = None) -> bool:
-        cmd = await self.get_block_command(identifier=receiver)
+        cmd = await self.get_block_command(user=receiver)
         if cmd is None:
             return False
         array = cmd.block_list
@@ -263,14 +325,16 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         redis key: 'mkm.user.{ADDRESS}.cmd.mute'
     """
 
-    async def save_mute_command(self, content: MuteCommand, identifier: ID) -> bool:
-        return await self.__user_table.save_mute_command(content=content, identifier=identifier)
+    async def save_mute_command(self, content: MuteCommand, user: ID) -> bool:
+        user = user.without_terminal()  # Naked ID
+        return await self.__user_table.save_mute_command(content=content, user=user)
 
-    async def get_mute_command(self, identifier: ID) -> MuteCommand:
-        return await self.__user_table.get_mute_command(identifier=identifier)
+    async def get_mute_command(self, user: ID) -> MuteCommand:
+        user = user.without_terminal()  # Naked ID
+        return await self.__user_table.get_mute_command(user=user)
 
     async def is_muted(self, receiver: ID, sender: ID, group: ID = None) -> bool:
-        cmd = await self.get_mute_command(identifier=receiver)
+        cmd = await self.get_mute_command(user=receiver)
         if cmd is None:
             return False
         array = cmd.mute_list
@@ -291,14 +355,33 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
         redis key: 'dim.user.{ADDRESS}.devices'
     """
 
-    async def get_devices(self, identifier: ID) -> Optional[List[DeviceInfo]]:
-        return await self.__device_table.get_devices(identifier=identifier)
+    async def get_devices(self, user: ID) -> Optional[List[DeviceInfo]]:
+        terminal = user.terminal
+        if terminal is not None:
+            user = user.without_terminal()  # Naked ID
+        # load
+        devices = await self.__device_table.get_devices(user=user)
+        if terminal is not None:
+            # filter for terminal
+            array = []
+            for info in devices:
+                if info.terminal != terminal:
+                    self.info('skip device: %s "%s", %s', user, terminal, info)
+                    continue
+                # terminal matched
+                array.append(info)
+            devices = array
+        return devices
 
-    async def save_devices(self, devices: List[DeviceInfo], identifier: ID) -> bool:
-        return await self.__device_table.save_devices(devices=devices, identifier=identifier)
+    # async def save_devices(self, devices: List[DeviceInfo], user: ID) -> bool:
+    #     user = user.without_terminal()  # Naked ID
+    #     return await self.__device_table.save_devices(devices=devices, user=user)
 
-    async def add_device(self, device: DeviceInfo, identifier: ID) -> bool:
-        return await self.__device_table.add_device(device=device, identifier=identifier)
+    async def add_device(self, device: DeviceInfo, user: ID) -> bool:
+        if 'did' not in device:
+            device['did'] = str(user)
+        user = user.without_terminal()  # Naked ID
+        return await self.__device_table.add_device(device=device, user=user)
 
     """
         Group members
@@ -428,10 +511,34 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
 
     # Override
     async def get_login_command_messages(self, user: ID) -> List[Tuple[LoginCommand, ReliableMessage]]:
-        return await self.__login_table.get_login_command_messages(user=user)
+        terminal = user.terminal
+        if terminal is not None:
+            user = user.without_terminal()  # Naked ID
+        # load
+        records = await self.__login_table.get_login_command_messages(user=user)
+        if terminal is not None:
+            # filter for terminal
+            array = []
+            for pair in records:
+                cmd = pair[0]
+                if CommandMessageUtils.get_login_terminal(content=cmd) != terminal:
+                    self.info('skip login record: %s "%s", %s', user, terminal, cmd)
+                    continue
+                # terminal matched
+                array.append(pair)
+            records = array
+        return records
 
     # Override
     async def save_login_command_message(self, user: ID, content: LoginCommand, msg: ReliableMessage) -> bool:
+        terminal = user.terminal
+        if terminal is not None:
+            user = user.without_terminal()  # Naked ID
+            # old = CommandMessageUtils.get_login_terminal(content=new_cmd)
+            old = content.get('terminal')
+            if old is None or old == '':
+                content['terminal'] = terminal
+        # save
         return await self.__login_table.save_login_command_message(user=user, content=content, msg=msg)
 
     #
@@ -445,11 +552,11 @@ class Database(AccountDBI, MessageDBI, SessionDBI):
     async def get_active_users(self) -> Set[ID]:
         return await self.__active_table.get_active_users()
 
-    async def add_socket_address(self, identifier: ID, address: Tuple[str, int]) -> Set[Tuple[str, int]]:
-        return await self.__active_table.add_socket_address(identifier=identifier, address=address)
+    async def add_socket_address(self, user: ID, address: Tuple[str, int]) -> Set[Tuple[str, int]]:
+        return await self.__active_table.add_socket_address(user=user, address=address)
 
-    async def remove_socket_address(self, identifier: ID, address: Tuple[str, int]) -> Set[Tuple[str, int]]:
-        return await self.__active_table.remove_socket_address(identifier=identifier, address=address)
+    async def remove_socket_address(self, user: ID, address: Tuple[str, int]) -> Set[Tuple[str, int]]:
+        return await self.__active_table.remove_socket_address(user=user, address=address)
 
     #
     #   Provider DBI

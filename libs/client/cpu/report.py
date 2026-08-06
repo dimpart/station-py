@@ -32,6 +32,7 @@
 
 from typing import Optional, List
 
+from dimples import MessageUtils
 from dimples import ReliableMessage
 from dimples import Content, ReportCommand
 from dimples import BaseCommandProcessor
@@ -91,38 +92,17 @@ class ReportCommandProcessor(BaseCommandProcessor, Logging):
         return await super().process_content(content=content, r_msg=r_msg)
 
     async def __process_apns(self, content: ReportCommand, msg: ReliableMessage) -> List[Content]:
+        sender = MessageUtils.real_sender(msg=msg)
         # submit device token for APNs
         info = content.copy_map()
-        info['did'] = str(msg.sender)
-        # fix 'terminal'
-        terminal = info.get('terminal')
-        if terminal is None or terminal == '':
-            terminal = self.session_terminal
-            if terminal is not None and terminal != '':
-                info['terminal'] = terminal
-        # get device token
-        token = info.get('device_token')
-        if token is None:
-            token = info.get('token')
-            if token is None:
-                # token not found, try to get device
-                info = info.get('device')
-                if isinstance(info, dict):
-                    # device info found
-                    token = info.get('token')
-                else:
-                    self.error(msg='device info not found: %s' % self)
-                    return []
-        sender = msg.sender
-        if token is None or len(token) == 0:
-            self.error('device token not found: %s, %s', sender, info)
+        device = DeviceInfo.from_json(info=info)
+        if device is None:
+            self.error('device token error: %s, %s', sender, info)
             return []
         else:
             self.info('saving device with token: %s, %s', sender, info)
-        device = DeviceInfo.from_json(info=info)
-        assert device is not None, 'failed to parse device info: %s' % info
         db = self.database
-        await db.add_device(device=device, identifier=sender)
+        await db.add_device(device=device, user=sender)
         text = 'Device token received.'
         return self._respond_receipt(text=text, content=content, envelope=msg.envelope, extra={
             'template': 'Device token received: ${did}.',

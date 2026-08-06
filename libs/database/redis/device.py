@@ -53,34 +53,34 @@ class DeviceCache(RedisCache):
 
         redis key: 'dim.user.{ADDRESS}.devices'
     """
-    def __cache_name(self, identifier: ID) -> str:
-        address = str(identifier.address)
+    def __cache_name(self, user: ID) -> str:
+        address = str(user.address)
         return '%s.%s.%s.devices' % (self.db_name, self.tbl_name, address)
 
-    async def get_devices(self, identifier: ID) -> Optional[List[DeviceInfo]]:
-        name = self.__cache_name(identifier=identifier)
+    async def get_devices(self, user: ID) -> Optional[List[DeviceInfo]]:
+        name = self.__cache_name(user=user)
         value = await self.get(name=name)
         if value is not None:
             js = utf8_decode(data=value)
-            assert js is not None, 'failed to decode string: %s' % value
+            assert js is not None, f'failed to decode string: {value}'
             array = json_decode(string=js)
-            assert isinstance(array, list), 'devices error: %s' % value
+            assert isinstance(array, list), f'devices error: {value}'
             return DeviceInfo.convert(array=array)
 
-    async def save_devices(self, devices: List[DeviceInfo], identifier: ID) -> bool:
+    async def save_devices(self, devices: List[DeviceInfo], user: ID) -> bool:
         array = DeviceInfo.revert(devices=devices)
         js = json_encode(container=array)
         value = utf8_encode(string=js)
-        name = self.__cache_name(identifier=identifier)
+        name = self.__cache_name(user=user)
         return await self.set(name=name, value=value, expires=self.EXPIRES)
 
-    async def add_device(self, device: DeviceInfo, identifier: ID) -> bool:
+    async def add_device(self, device: DeviceInfo, user: ID) -> bool:
         # get all devices info with ID
-        array = await self.get_devices(identifier=identifier)
+        array = await self.get_devices(user=user)
         if array is None:
             array = [device]
         else:
             array = insert_device(info=device, devices=array)
             if array is None:
                 return False
-        return await self.save_devices(devices=array, identifier=identifier)
+        return await self.save_devices(devices=array, user=user)

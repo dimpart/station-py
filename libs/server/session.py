@@ -102,11 +102,11 @@ async def session_change_id(session: ServerSession, new_id: ID, old_id: Optional
     assert isinstance(db, Database), 'database error: %s' % db
     if old_id is not None:
         # remove socket address for old user
-        await db.remove_socket_address(identifier=old_id, address=remote)
+        await db.remove_socket_address(user=old_id, address=remote)
     if new_id is not None:  # and session.active:
         # store socket address for new user
         Log.info('store socket address for new user: %s, %s', new_id, remote)
-        return await db.add_socket_address(identifier=new_id, address=remote)
+        return await db.add_socket_address(user=new_id, address=remote)
 
 
 async def session_change_active(session: ServerSession, active: bool):
@@ -120,7 +120,7 @@ async def session_change_active(session: ServerSession, active: bool):
     if active:
         # store socket address for this user
         Log.info('store socket address for this user: %s, %s', identifier, remote)
-        return await db.add_socket_address(identifier=identifier, address=remote)
+        return await db.add_socket_address(user=identifier, address=remote)
     else:
         # remove socket address for this user
-        return await db.remove_socket_address(identifier=identifier, address=remote)
+        return await db.remove_socket_address(user=identifier, address=remote)

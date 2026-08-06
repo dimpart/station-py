@@ -33,7 +33,7 @@ from dimples import ID
 from dimples.utils import Config
 from dimples.database import DbTask, DataCache
 
-from .redis import LoginCache
+from .redis import ActiveCache
 
 
 class ActTask(DbTask[str, Set[ID]]):
@@ -42,7 +42,7 @@ class ActTask(DbTask[str, Set[ID]]):
     MEM_CACHE_REFRESH = 8   # seconds
 
     def __init__(self,
-                 redis: LoginCache,
+                 redis: ActiveCache,
                  mutex_lock: threading.Lock, cache_pool: CachePool):
         super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool,
                          cache_expires=self.MEM_CACHE_EXPIRES,
@@ -55,7 +55,7 @@ class ActTask(DbTask[str, Set[ID]]):
 
     # Override
     async def _read_data(self) -> Optional[Set[ID]]:
-        users = await self._redis.get_active_users()
+        users = await self._redis.load_active_users()
         if users is None or len(users) == 0:
             return None
         else:
@@ -71,7 +71,7 @@ class ActiveTable(DataCache):
     def __init__(self, config: Config):
         super().__init__(pool_name='session')  # 'active_users' => Set(ID)
         self._socket_address: MutableMapping[ID, Set[Tuple[str, int]]] = {}  # ID => set(socket_address)
-        self._redis = LoginCache(config=config)
+        self._redis = ActiveCache(config=config)
 
     # noinspection PyMethodMayBeStatic
     def show_info(self):
@@ -93,29 +93,29 @@ class ActiveTable(DataCache):
         users = await task.load()
         return set() if users is None else users
 
-    async def add_socket_address(self, identifier: ID, address: Tuple[str, int]) -> Set[Tuple[str, int]]:
+    async def add_socket_address(self, user: ID, address: Tuple[str, int]) -> Set[Tuple[str, int]]:
         """ wrote by station only """
         with self.lock:
             # 1. add into local cache
-            sockets = self._socket_address.get(identifier)
+            sockets = self._socket_address.get(user)
             if sockets is None:
                 sockets = set()
-                self._socket_address[identifier] = sockets
+                self._socket_address[user] = sockets
             sockets.add(address)
             # 2. store into Redis Server
-            await self._redis.save_socket_addresses(identifier=identifier, addresses=sockets)
+            await self._redis.save_socket_addresses(user=user, addresses=sockets)
             return sockets
 
-    async def remove_socket_address(self, identifier: ID, address: Tuple[str, int]) -> Set[Tuple[str, int]]:
+    async def remove_socket_address(self, user: ID, address: Tuple[str, int]) -> Set[Tuple[str, int]]:
         """ wrote by station only """
         with self.lock:
             # 1. remove from local cache
-            sockets = self._socket_address.get(identifier)
+            sockets = self._socket_address.get(user)
             if sockets is not None:
                 sockets.discard(address)
                 if len(sockets) == 0:
-                    self._socket_address.pop(identifier, None)
+                    self._socket_address.pop(user, None)
                     sockets = None
             # 2. store into Redis Server
-            await self._redis.save_socket_addresses(identifier=identifier, addresses=sockets)
+            await self._redis.save_socket_addresses(user=user, addresses=sockets)
             return sockets

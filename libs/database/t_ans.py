@@ -130,6 +130,7 @@ class AddressNameTable(DataCache):
                       mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
     def _new_name_task(self, identifier: ID) -> NameTask:
+        assert identifier.terminal is None, f'not a naked id: {identifier}'
         return NameTask(identifier=identifier,
                         redis=self._redis, storage=self._dos,
                         mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)

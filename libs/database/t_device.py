@@ -39,11 +39,11 @@ from .dos.device import insert_device
 
 class DevTask(DbTask[ID, List[DeviceInfo]]):
 
-    def __init__(self, identifier: ID,
+    def __init__(self, user: ID,
                  redis: DeviceCache, storage: DeviceStorage,
                  mutex_lock: threading.Lock, cache_pool: CachePool):
         super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool)
-        self._identifier = identifier
+        self._identifier = user
         self._redis = redis
         self._dos = storage
 
@@ -53,23 +53,28 @@ class DevTask(DbTask[ID, List[DeviceInfo]]):
 
     # Override
     async def _read_data(self) -> Optional[List[DeviceInfo]]:
-        # 1. get from redis server
-        devices = await self._redis.get_devices(identifier=self._identifier)
-        if devices is not None and len(devices) > 0:
+        user = self._identifier
+        # 1. the redis server will return None when cache not found
+        # 2. when redis server return an empty array, no need to check local storage again
+        devices = await self._redis.get_devices(user=user)
+        if devices is not None:
             return devices
-        # 2. get from local storage
-        devices = await self._dos.get_devices(identifier=self._identifier)
-        if devices is not None and len(devices) > 0:
-            # 3. update redis server
-            await self._redis.save_devices(devices=devices, identifier=self._identifier)
-            return devices
+        # 3. try to load from local storage
+        devices = await self._dos.get_devices(user=user)
+        if devices is not None:
+            # 4. create an empty array as a placeholder for the memory cache
+            devices = []
+        # 5. update redis server
+        await self._redis.save_devices(devices=devices, user=user)
+        return devices
 
     # Override
     async def _write_data(self, value: List[DeviceInfo]) -> bool:
+        user = self._identifier
         # 1. store into redis server
-        ok1 = await self._redis.save_devices(devices=value, identifier=self._identifier)
+        ok1 = await self._redis.save_devices(devices=value, user=user)
         # 2. save into local storage
-        ok2 = await self._dos.save_devices(devices=value, identifier=self._identifier)
+        ok2 = await self._dos.save_devices(devices=value, user=user)
         return ok1 or ok2
 
 
@@ -83,26 +88,27 @@ class DeviceTable(DataCache):
     def show_info(self):
         self._dos.show_info()
 
-    def _new_task(self, identifier: ID) -> DevTask:
-        return DevTask(identifier=identifier,
+    def _new_task(self, user: ID) -> DevTask:
+        assert user.terminal is None, f'not a naked id: {user}'
+        return DevTask(user=user,
                        redis=self._redis, storage=self._dos,
                        mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
-    async def get_devices(self, identifier: ID) -> Optional[List[DeviceInfo]]:
-        task = self._new_task(identifier=identifier)
+    async def get_devices(self, user: ID) -> Optional[List[DeviceInfo]]:
+        task = self._new_task(user=user)
         return await task.load()
 
-    async def save_devices(self, devices: List[DeviceInfo], identifier: ID) -> bool:
-        task = self._new_task(identifier=identifier)
+    async def save_devices(self, devices: List[DeviceInfo], user: ID) -> bool:
+        task = self._new_task(user=user)
         return await task.save(value=devices)
 
-    async def add_device(self, device: DeviceInfo, identifier: ID) -> bool:
+    async def add_device(self, device: DeviceInfo, user: ID) -> bool:
         # get all devices info with ID
-        array = await self.get_devices(identifier=identifier)
+        array = await self.get_devices(user=user)
         if array is None:
             array = [device]
         else:
             array = insert_device(info=device, devices=array)
             if array is None:
                 return False
-        return await self.save_devices(devices=array, identifier=identifier)
+        return await self.save_devices(devices=array, user=user)

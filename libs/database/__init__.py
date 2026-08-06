@@ -72,6 +72,7 @@ __all__ = [
     'AddressNameCache',
     'MetaCache',
     'DocumentCache', 'DeviceCache',
+    'ActiveCache',
     'UserCache', 'LoginCache',
     'GroupCache',
     'GroupKeysCache',

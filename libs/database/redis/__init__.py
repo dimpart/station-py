@@ -31,6 +31,7 @@
 
 from dimples.database.redis import *
 
+from .active import ActiveCache
 from .user import UserCache
 from .device import DeviceCache
 from .ans import AddressNameCache
@@ -46,6 +47,7 @@ __all__ = [
     'MessageCache',
     'StationCache',
 
+    'ActiveCache',
     'UserCache',
     'DeviceCache',
     'AddressNameCache',

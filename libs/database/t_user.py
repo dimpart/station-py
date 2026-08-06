@@ -60,23 +60,28 @@ class UsrTask(BaseTask):
 
     # Override
     async def _read_data(self) -> Optional[List[ID]]:
-        # 1. get from redis server
-        contacts = await self._redis.get_contacts(identifier=self._user)
+        user = self._user
+        # 1. the redis server will return None when cache not found
+        # 2. when redis server return an empty array, no need to check local storage again
+        contacts = await self._redis.get_contacts(user=user)
         if contacts is not None:
             return contacts
-        # 2. get from local storage
-        contacts = await self._dos.get_contacts(user=self._user)
-        if contacts is not None:
-            # 3. update redis server
-            await self._redis.save_contacts(contacts=contacts, identifier=self._user)
-            return contacts
+        # 3. try to load from local storage
+        contacts = await self._dos.load_contacts(user=user)
+        if contacts is None:
+            # 4. create an empty array as a placeholder for the memory cache
+            contacts = []
+        # 5. update redis server
+        await self._redis.save_contacts(contacts=contacts, user=user)
+        return contacts
 
     # Override
     async def _write_data(self, value: List[ID]) -> bool:
+        user = self._user
         # 1. store into redis server
-        ok1 = await self._redis.save_contacts(contacts=value, identifier=self._user)
+        ok1 = await self._redis.save_contacts(contacts=value, user=user)
         # 2. save into local storage
-        ok2 = await self._dos.save_contacts(contacts=value, user=self._user)
+        ok2 = await self._dos.save_contacts(contacts=value, user=user)
         return ok1 or ok2
 
 
@@ -84,23 +89,26 @@ class ConTask(BaseTask):
 
     # Override
     async def _read_data(self) -> Optional[Command]:
+        user = self._user
         # 1. get from redis server
-        cmd = await self._redis.get_contacts_command(identifier=self._user)
+        cmd = await self._redis.get_contacts_command(user=user)
         if cmd is not None:
             return cmd
         # 2. get from local storage
-        cmd = await self._dos.get_contacts_command(identifier=self._user)
-        if cmd is not None:
-            # 3. update redis server
-            await self._redis.save_contacts_command(content=cmd, identifier=self._user)
-            return cmd
+        cmd = await self._dos.get_contacts_command(user=user)
+        if cmd is None:
+            return None
+        # 3. update redis server
+        await self._redis.save_contacts_command(content=cmd, user=user)
+        return cmd
 
     # Override
     async def _write_data(self, value: Command) -> bool:
+        user = self._user
         # 1. store into redis server
-        ok1 = await self._redis.save_contacts_command(content=value, identifier=self._user)
+        ok1 = await self._redis.save_contacts_command(content=value, user=user)
         # 2. save into local storage
-        ok2 = await self._dos.save_contacts_command(content=value, identifier=self._user)
+        ok2 = await self._dos.save_contacts_command(content=value, user=user)
         return ok1 or ok2
 
 
@@ -108,23 +116,26 @@ class BloTask(BaseTask):
 
     # Override
     async def _read_data(self) -> Optional[BlockCommand]:
+        user = self._user
         # 1. get from redis server
-        cmd = await self._redis.get_block_command(identifier=self._user)
+        cmd = await self._redis.get_block_command(user=user)
         if cmd is not None:
             return cmd
         # 2. get from local storage
-        cmd = await self._dos.get_block_command(identifier=self._user)
-        if cmd is not None:
-            # 3. update redis server
-            await self._redis.save_block_command(content=cmd, identifier=self._user)
-            return cmd
+        cmd = await self._dos.get_block_command(user=user)
+        if cmd is None:
+            return None
+        # 3. update redis server
+        await self._redis.save_block_command(content=cmd, user=user)
+        return cmd
 
     # Override
     async def _write_data(self, value: BlockCommand) -> bool:
+        user = self._user
         # 1. store into redis server
-        ok1 = await self._redis.save_block_command(content=value, identifier=self._user)
+        ok1 = await self._redis.save_block_command(content=value, user=user)
         # 2. save into local storage
-        ok2 = await self._dos.save_block_command(content=value, identifier=self._user)
+        ok2 = await self._dos.save_block_command(content=value, user=user)
         return ok1 or ok2
 
 
@@ -132,23 +143,26 @@ class MutTask(BaseTask):
 
     # Override
     async def _read_data(self) -> Optional[MuteCommand]:
+        user = self._user
         # 1. get from redis server
-        cmd = await self._redis.get_mute_command(identifier=self._user)
+        cmd = await self._redis.get_mute_command(user=user)
         if cmd is not None:
             return cmd
         # 2. get from local storage
-        cmd = await self._dos.get_mute_command(identifier=self._user)
-        if cmd is not None:
-            # 3. update redis server
-            await self._redis.save_mute_command(content=cmd, identifier=self._user)
-            return cmd
+        cmd = await self._dos.get_mute_command(user=user)
+        if cmd is None:
+            return None
+        # 3. update redis server
+        await self._redis.save_mute_command(content=cmd, user=self._user)
+        return cmd
 
     # Override
     async def _write_data(self, value: MuteCommand) -> bool:
+        user = self._user
         # 1. store into redis server
-        ok1 = await self._redis.save_mute_command(content=value, identifier=self._user)
+        ok1 = await self._redis.save_mute_command(content=value, user=user)
         # 2. save into local storage
-        ok2 = await self._dos.save_mute_command(content=value, identifier=self._user)
+        ok2 = await self._dos.save_mute_command(content=value, user=user)
         return ok1 or ok2
 
 
@@ -170,18 +184,26 @@ class UserTable(UserDBI, ContactDBI):
         self._dos.show_info()
 
     def _new_task(self, user: ID) -> UsrTask:
+        assert user.terminal is None, f'not a naked id: {user}'
+        # create task with naked id
         return UsrTask(user=user, cache_pool=self._cache,
                        redis=self._redis, storage=self._dos, mutex_lock=self._lock)
 
     def _new_con_task(self, user: ID) -> ConTask:
+        assert user.terminal is None, f'not a naked id: {user}'
+        # create task with naked id
         return ConTask(user=user, cache_pool=self._cmd_contacts,
                        redis=self._redis, storage=self._dos, mutex_lock=self._lock)
 
     def _new_blo_task(self, user: ID) -> BloTask:
+        assert user.terminal is None, f'not a naked id: {user}'
+        # create task with naked id
         return BloTask(user=user, cache_pool=self._cmd_block,
                        redis=self._redis, storage=self._dos, mutex_lock=self._lock)
 
     def _new_mut_task(self, user: ID) -> MutTask:
+        assert user.terminal is None, f'not a naked id: {user}'
+        # create task with naked id
         return MutTask(user=user, cache_pool=self._cmd_mute,
                        redis=self._redis, storage=self._dos, mutex_lock=self._lock)
 
@@ -222,21 +244,21 @@ class UserTable(UserDBI, ContactDBI):
         if new_time is None or new_time <= 0:
             return False
         # check old record
-        old, _ = await self.get_contacts_command(identifier=user)
+        old, _ = await self.get_contacts_command(user=user)
         if old is not None and is_before(old_time=old.time, new_time=new_time):
             # command expired
             return False
 
-    async def save_contacts_command(self, content: Command, identifier: ID) -> bool:
+    async def save_contacts_command(self, content: Command, user: ID) -> bool:
         # check old record with time
-        if await self._is_contacts_expired(user=identifier, content=content):
+        if await self._is_contacts_expired(user=user, content=content):
             # command expired, drop it
             return False
-        task = self._new_con_task(user=identifier)
+        task = self._new_con_task(user=user)
         return await task.save(value=content)
 
-    async def get_contacts_command(self, identifier: ID) -> Optional[Command]:
-        task = self._new_con_task(user=identifier)
+    async def get_contacts_command(self, user: ID) -> Optional[Command]:
+        task = self._new_con_task(user=user)
         return await task.load()
 
     #
@@ -249,21 +271,21 @@ class UserTable(UserDBI, ContactDBI):
         if new_time is None or new_time <= 0:
             return False
         # check old record
-        old = await self.get_block_command(identifier=user)
+        old = await self.get_block_command(user=user)
         if old is not None and is_before(old_time=old.time, new_time=new_time):
             # command expired
             return False
 
-    async def save_block_command(self, content: BlockCommand, identifier: ID) -> bool:
+    async def save_block_command(self, content: BlockCommand, user: ID) -> bool:
         # check old record with time
-        if await self._is_blocked_expired(user=identifier, content=content):
+        if await self._is_blocked_expired(user=user, content=content):
             # command expired, drop it
             return False
-        task = self._new_blo_task(user=identifier)
+        task = self._new_blo_task(user=user)
         return await task.save(value=content)
 
-    async def get_block_command(self, identifier: ID) -> Optional[BlockCommand]:
-        task = self._new_blo_task(user=identifier)
+    async def get_block_command(self, user: ID) -> Optional[BlockCommand]:
+        task = self._new_blo_task(user=user)
         return await task.load()
 
     #
@@ -276,19 +298,19 @@ class UserTable(UserDBI, ContactDBI):
         if new_time is None or new_time <= 0:
             return False
         # check old record
-        old = await self.get_mute_command(identifier=user)
+        old = await self.get_mute_command(user=user)
         if old is not None and is_before(old_time=old.time, new_time=new_time):
             # command expired
             return False
 
-    async def save_mute_command(self, content: MuteCommand, identifier: ID) -> bool:
+    async def save_mute_command(self, content: MuteCommand, user: ID) -> bool:
         # check old record with time
-        if await self._is_muted_expired(user=identifier, content=content):
+        if await self._is_muted_expired(user=user, content=content):
             # command expired, drop it
             return False
-        task = self._new_mut_task(user=identifier)
+        task = self._new_mut_task(user=user)
         return await task.save(value=content)
 
-    async def get_mute_command(self, identifier: ID) -> Optional[MuteCommand]:
-        task = self._new_mut_task(user=identifier)
+    async def get_mute_command(self, user: ID) -> Optional[MuteCommand]:
+        task = self._new_mut_task(user=user)
         return await task.load()
