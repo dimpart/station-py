@@ -55,6 +55,7 @@ class DocumentStorage(SuperStorage):
         path = self.public_path(self.doc_path_new)
         return template_replace(path, key='ADDRESS', value=str(identifier.address))
 
+    # Override
     async def load_documents(self, identifier: ID) -> Optional[List[Document]]:
         """ load documents from file """
         docs = await super().load_documents(identifier=identifier)
@@ -65,7 +66,7 @@ class DocumentStorage(SuperStorage):
         if not await Path.exists(path=path):
             # load from old version
             path = self.__doc_path_old(identifier=identifier)
-        self.info(msg='Loading document from: %s' % path)
+        self.info('Loading document from: %s', path)
         info = await self.read_json(path=path)
         if info is None:
             # file not found
@@ -89,7 +90,7 @@ class DocumentStorage(SuperStorage):
             if docs is not None:
                 for doc in docs:
                     documents.append(doc)
-        self.info(msg='Scanned %d documents(s) from %s' % (len(documents), pub))
+        self.info('Scanned %d documents(s) from %s', len(documents), pub)
         return documents
 
 
@@ -100,7 +101,7 @@ async def load_documents(address: str, pub: str) -> Optional[List[Document]]:
         path = get_path(address=address, pub=pub, path=DocumentStorage.doc_path_new)
         if not await Path.exists(path=path):
             path = get_path(address=address, pub=pub, path=DocumentStorage.doc_path_old)
-    Log.info(msg='Loading document from: %s' % path)
+    Log.info('Loading document from: %s', path)
     info = await DocumentStorage.read_json(path=path)
     if info is not None:
         return DocumentUtils.pump_documents(info=info)

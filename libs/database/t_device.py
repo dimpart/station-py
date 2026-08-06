@@ -61,7 +61,7 @@ class DevTask(DbTask[ID, List[DeviceInfo]]):
             return devices
         # 3. try to load from local storage
         devices = await self._dos.get_devices(user=user)
-        if devices is not None:
+        if devices is None:
             # 4. create an empty array as a placeholder for the memory cache
             devices = []
         # 5. update redis server
@@ -94,9 +94,10 @@ class DeviceTable(DataCache):
                        redis=self._redis, storage=self._dos,
                        mutex_lock=self._mutex_lock, cache_pool=self._cache_pool)
 
-    async def get_devices(self, user: ID) -> Optional[List[DeviceInfo]]:
+    async def get_devices(self, user: ID) -> List[DeviceInfo]:
         task = self._new_task(user=user)
-        return await task.load()
+        devices = await task.load()
+        return [] if devices is None else devices
 
     async def save_devices(self, devices: List[DeviceInfo], user: ID) -> bool:
         task = self._new_task(user=user)

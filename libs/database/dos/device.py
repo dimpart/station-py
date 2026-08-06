@@ -149,16 +149,17 @@ class DeviceInfo(Dictionary):
         clazz = self.__class__.__name__
         title = self.title
         platform = self.platform
-        terminal = self.terminal
+        identifier = self.identifier
         token = self.token
-        return '<%s title="%s" platform="%s" terminal="%s" time="%s">\n' \
-               '    token: "%s"\n' \
-               '    channel: %s\n' \
-               '    topic: %s\n' \
-               '    sandbox: %s\n' \
+        return '<%s title="%s" platform="%s" time="%s">\n' \
+               '    user id : %s\n' \
+               '    token   : "%s"\n' \
+               '    channel : %s\n' \
+               '    topic   : %s\n' \
+               '    sandbox : %s\n' \
                '' \
                '</%s>'\
-               % (clazz, title, platform, terminal, self.time, token, self.channel, self.token, self.sandbox, clazz)
+               % (clazz, title, platform, self.time, identifier, token, self.channel, self.token, self.sandbox, clazz)
 
     def __str__(self) -> str:
         return self.to_str()

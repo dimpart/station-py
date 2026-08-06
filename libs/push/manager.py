@@ -54,7 +54,7 @@ class PushNotificationClient(Runner, Logging):
         """
 
         @abstractmethod
-        async def get_devices(self, user: ID) -> Optional[List[DeviceInfo]]:
+        async def get_devices(self, user: ID) -> List[DeviceInfo]:
             """ get devices with token in hex format """
             pass
 
@@ -131,27 +131,34 @@ class PushNotificationClient(Runner, Logging):
 
     async def __push(self, aps: PushInfo, receiver: ID, mta: Optional[str]) -> bool:
         devices = await self.delegate.get_devices(user=receiver)
-        if devices is None or len(devices) == 0:
-            self.warning('cannot get device token for user %s', receiver)
+        cnt = len(devices)
+        self.info('got %d device token(s) for user: %s', cnt, receiver)
+        if cnt == 0:
             return False
+        i = 0
         for item in devices:
+            i += 1
             platform = item.platform
-            if platform is None:
-                self.error('device error: %s => %s', item, receiver)
+            if not item.is_matched(identifier=receiver):
+                self.warning('[%d/%d] device not matched: %s -> "/%s" %s.', i, cnt, receiver, item.terminal, platform)
                 continue
             elif item.is_expired:
-                self.warning('device info expired: %s => %s', item, receiver)
+                self.warning('[%d/%d] device info expired: %s -> %s.', i, cnt, receiver, item)
                 continue
-            elif not item.is_matched(identifier=receiver):
-                self.warning('device terminal not matched: %s => %s', item, receiver)
+            elif platform is None:
+                self.error('[%d/%d] device info error: %s -> %s.', i, cnt, receiver, item)
                 continue
-            platform = platform.lower()
+            else:
+                platform = platform.strip()
+                platform = platform.lower()
+                self.info('[%d/%d] pushing to device: %s -> %s.', i, cnt, receiver, item)
+            # checking platform
             if platform == 'ios':
                 pns = self.apple_pns
             elif platform == 'android':
                 pns = self.android_pns
             else:
-                self.error('platform error: %s, %s => %s', platform, item, receiver)
+                self.error('device platform error: %s -> %s.', receiver, item)
                 continue
             if pns is None:
                 self.error('push service not found: %s (%s)', receiver, platform)

@@ -235,6 +235,7 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
                     continue
                 # terminal matched
                 array.append(doc)
+            self.info('filter %d/%d document(s) for user: %s', len(array), len(documents), identifier)
             documents = array
         return documents
 
@@ -355,7 +356,7 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
         redis key: 'dim.user.{ADDRESS}.devices'
     """
 
-    async def get_devices(self, user: ID) -> Optional[List[DeviceInfo]]:
+    async def get_devices(self, user: ID) -> List[DeviceInfo]:
         terminal = user.terminal
         if terminal is not None:
             user = user.without_terminal()  # Naked ID
@@ -370,6 +371,7 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
                     continue
                 # terminal matched
                 array.append(info)
+            self.info('filter %d/%d device(s) for user: %s', len(array), len(devices), user)
             devices = array
         return devices
 
@@ -526,6 +528,7 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
                     continue
                 # terminal matched
                 array.append(pair)
+            self.info('filter %d/%d login command(s) for user: %s', len(array), len(records), user)
             records = array
         return records
 
