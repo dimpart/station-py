@@ -78,7 +78,7 @@ class ApplePushNotificationService(PushNotificationService, Logging):
                               proto=self.proto, json_encoder=self.json_encoder, password=self.password,
                               proxy_host=self.proxy_host, proxy_port=self.proxy_port)
         except IOError as error:
-            self.error('failed to connect apple server: %s' % error)
+            self.error('failed to connect apple server: %s', error)
 
     @property
     def client_prod(self) -> Optional[APNsClient]:
@@ -104,7 +104,7 @@ class ApplePushNotificationService(PushNotificationService, Logging):
         else:
             client = self.client_prod
         if client is None:
-            self.error('cannot connect apple server, message dropped: %s' % notification)
+            self.error('cannot connect apple server, message dropped: %s', notification)
             return -503  # Service Unavailable
         # try to send notification
         try:
@@ -113,10 +113,10 @@ class ApplePushNotificationService(PushNotificationService, Logging):
                                      priority=priority, expiration=expiration, collapse_id=collapse_id)
             return 200  # OK
         except IOError as error:
-            self.error('connection lost: %s, sandbox: %s' % (error, sandbox))
+            self.error('connection lost: %s, sandbox: %s', error, sandbox)
             return -408  # Request Timeout
         except APNsException as error:
-            self.error('failed to push notification: %s, error %s' % (notification, error))
+            self.error('failed to push notification: %s, error: %s', notification, error)
             return -400  # Bad Request
 
     #
@@ -134,11 +134,11 @@ class ApplePushNotificationService(PushNotificationService, Logging):
         # 2. send
         alert = PayloadAlert(title=title, body=content, launch_image=image)
         payload = Payload(alert=alert, badge=badge, sound=sound)
-        self.info(msg='sending notification for %s (%s) to device: %s' % (receiver, content, device))
+        self.info('sending notification for %s (%s) to ios device: %s', receiver, content, device)
         # check for iOS platform
         platform = device.platform
         if platform is not None and platform.lower() != 'ios':
-            self.warning(msg='It is not an iOS device, skip it: %s' % platform)
+            self.warning('It is not an iOS device, skip it: %s', platform)
             return False
         token = device.token
         topic = device.topic
@@ -162,5 +162,5 @@ class ApplePushNotificationService(PushNotificationService, Logging):
             # try again
             result = self.send_notification(notification=payload, token_hex=token, topic=topic, sandbox=sandbox)
         if result == 200:  # OK
-            self.info(msg='notification sent for %s, badge=%d' % (receiver, badge))
+            self.info('notification sent for %s, badge=%d', receiver, badge)
             return True

@@ -235,7 +235,7 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
                     continue
                 # terminal matched
                 array.append(doc)
-            self.info('filter %d/%d document(s) for user: %s', len(array), len(documents), identifier)
+            self.info('filter %d/%d document(s) for user: %s/%s', len(array), len(documents), identifier, terminal)
             documents = array
         return documents
 
@@ -365,13 +365,18 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
         if terminal is not None:
             # filter for terminal
             array = []
+            cnt = len(devices)
+            i = 0
             for info in devices:
+                i += 1
                 if info.terminal != terminal:
-                    self.info('skip device: %s "%s", %s', user, terminal, info)
+                    self.info('[%d/%d]  skip device: %s -> %s, %s.', i, cnt, user, terminal, info.platform)
                     continue
+                else:
+                    self.info('[%d/%d] match device: %s -> %s, %s.', i, cnt, user, terminal, info.platform)
                 # terminal matched
                 array.append(info)
-            self.info('filter %d/%d device(s) for user: %s', len(array), len(devices), user)
+            self.info('filter %d/%d device(s) for user: %s/%s', len(array), len(devices), user, terminal)
             devices = array
         return devices
 
@@ -528,7 +533,7 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
                     continue
                 # terminal matched
                 array.append(pair)
-            self.info('filter %d/%d login command(s) for user: %s', len(array), len(records), user)
+            self.info('filter %d/%d login command(s) for user: %s/%s', len(array), len(records), user, terminal)
             records = array
         return records
 

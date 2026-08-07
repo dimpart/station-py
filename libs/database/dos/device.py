@@ -103,6 +103,9 @@ class DeviceInfo(Dictionary):
 
     @property
     def terminal(self) -> Optional[str]:
+        device = self.get_str(key='terminal')
+        if device is not None and len(device) > 0:
+            return device
         did = self.identifier
         if did is not None:
             return did.terminal
@@ -141,9 +144,8 @@ class DeviceInfo(Dictionary):
 
     def is_matched(self, identifier: ID) -> bool:
         terminal = identifier.terminal
-        if terminal is None:
-            terminal = ''
-        return terminal == self.terminal
+        device = self.terminal
+        return terminal == device
 
     def to_str(self) -> str:
         clazz = self.__class__.__name__
@@ -152,14 +154,14 @@ class DeviceInfo(Dictionary):
         identifier = self.identifier
         token = self.token
         return '<%s title="%s" platform="%s" time="%s">\n' \
-               '    user id : %s\n' \
+               '    user id : "%s"\n' \
                '    token   : "%s"\n' \
                '    channel : %s\n' \
                '    topic   : %s\n' \
                '    sandbox : %s\n' \
                '' \
                '</%s>'\
-               % (clazz, title, platform, self.time, identifier, token, self.channel, self.token, self.sandbox, clazz)
+               % (clazz, title, platform, self.time, identifier, token, self.channel, self.topic, self.sandbox, clazz)
 
     def __str__(self) -> str:
         return self.to_str()

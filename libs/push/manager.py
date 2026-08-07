@@ -118,8 +118,10 @@ class PushNotificationClient(Runner, Logging):
             return False
         array = task.items
         if task.is_expired:
-            self.warning('task expired, drop %d item(s).', len(array))
-            array = []
+            self.warning('task expired, drop %d item(s): %s', len(array), task)
+            return True
+        else:
+            self.info('processing push task with %d item(s): %s', len(array), task)
         sid = task.get_str(key='MTA')
         # push items
         for item in array:
@@ -132,7 +134,7 @@ class PushNotificationClient(Runner, Logging):
     async def __push(self, aps: PushInfo, receiver: ID, mta: Optional[str]) -> bool:
         devices = await self.delegate.get_devices(user=receiver)
         cnt = len(devices)
-        self.info('got %d device token(s) for user: %s', cnt, receiver)
+        self.info('got %d device token(s) for user %s: "%s", badge: %d', cnt, receiver, aps.title, aps.badge)
         if cnt == 0:
             return False
         i = 0
@@ -140,18 +142,18 @@ class PushNotificationClient(Runner, Logging):
             i += 1
             platform = item.platform
             if not item.is_matched(identifier=receiver):
-                self.warning('[%d/%d] device not matched: %s -> "/%s" %s.', i, cnt, receiver, item.terminal, platform)
+                self.info('[%d/%d] device not matched: %s -> %s, %s.', i, cnt, receiver, item.terminal, platform)
                 continue
             elif item.is_expired:
-                self.warning('[%d/%d] device info expired: %s -> %s.', i, cnt, receiver, item)
+                self.warning('[%d/%d]  device expired: %s -> %s.', i, cnt, receiver, item)
                 continue
             elif platform is None:
                 self.error('[%d/%d] device info error: %s -> %s.', i, cnt, receiver, item)
                 continue
             else:
+                self.info('[%d/%d]  pushing to device: %s -> %s, %s.', i, cnt, receiver, item.terminal, platform)
                 platform = platform.strip()
                 platform = platform.lower()
-                self.info('[%d/%d] pushing to device: %s -> %s.', i, cnt, receiver, item)
             # checking platform
             if platform == 'ios':
                 pns = self.apple_pns
