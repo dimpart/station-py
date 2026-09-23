@@ -264,8 +264,8 @@ def insert_device(info: DeviceInfo, devices: List[DeviceInfo]) -> Optional[List[
     index = find_device(info=info, devices=devices)
     if index < 0:
         # keep only last eight records
-        while len(devices) > 7:
-            devices.pop()
+        if len(devices) > 8:
+            del devices[8:]
     elif is_before(old_time=devices[index].time, new_time=info.time):
         # device info expired, drop it
         return None

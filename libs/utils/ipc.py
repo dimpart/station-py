@@ -32,7 +32,7 @@ import threading
 from abc import ABC
 from typing import Optional, Tuple, Any
 
-from startrek.skywalker import Runner
+from small.skywalker import Runner
 
 from ipx import Arrow, SharedMemoryArrow
 # from ipx.shm.mmap import MmapSharedMemoryController as DefaultController

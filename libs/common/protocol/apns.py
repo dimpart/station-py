@@ -237,7 +237,7 @@ class PushItem(Dictionary):
     def receiver(self) -> ID:
         identifier = self.__receiver
         if identifier is None:
-            string = self.get(key='receiver')
+            string = self.get('receiver')
             identifier = ID.parse(identifier=string)
             assert identifier is not None, 'receiver error: %s' % string
             self.__receiver = identifier
@@ -247,7 +247,7 @@ class PushItem(Dictionary):
     def info(self) -> PushInfo:
         aps = self.__aps
         if aps is None:
-            dictionary = self.get(key='aps')
+            dictionary = self.get('aps')
             if dictionary is None:
                 dictionary = self.to_map()
             aps = PushInfo.parse(info=dictionary)

@@ -63,7 +63,7 @@ class UsrTask(BaseTask):
         user = self._user
         # 1. the redis server will return None when cache not found
         # 2. when redis server return an empty array, no need to check local storage again
-        contacts = await self._redis.get_contacts(user=user)
+        contacts = await self._redis.load_contacts(user=user)
         if contacts is not None:
             return contacts
         # 3. try to load from local storage

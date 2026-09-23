@@ -32,23 +32,18 @@
 from typing import Optional, List, Set, Tuple
 
 from dimples import SymmetricKey, PrivateKey, SignKey, DecryptKey
-from dimples import ID, Meta, Document, Visa
+from dimples import ID, Meta, Document
 from dimples import ReliableMessage
 from dimples import Command, LoginCommand, GroupCommand, ResetCommand
 from dimples import BlockCommand, MuteCommand
 from dimples import AccountDBI, MessageDBI, SessionDBI
 from dimples import ProviderInfo, StationInfo
-from dimples import IDUtils, MetaUtils, DocumentUtils
+from dimples import IDUtils
 from dimples import CommandMessageUtils
 from dimples.utils import Config
-from dimples.database import PrivateKeyTable
-from dimples.database import CipherKeyTable
-from dimples.database import MetaTable
+from dimples import AccountDatabase
+from dimples import MessageDatabase
 from dimples.database import LoginTable
-from dimples.database import GroupTable
-from dimples.database import GroupHistoryTable
-from dimples.database import GroupKeysTable
-from dimples.database import ReliableMessageTable
 from dimples.database import StationTable
 
 from ..utils import Logging
@@ -56,7 +51,6 @@ from ..utils import StringPairing
 
 from .dos import DeviceInfo
 
-# from .t_ans import AddressNameTable
 from .t_document import DocumentTable
 from .t_device import DeviceTable
 from .t_user import UserTable
@@ -67,45 +61,27 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
 
     def __init__(self, config: Config):
         super().__init__()
-        # Entity
-        self.__private_table = PrivateKeyTable(config=config)
-        self.__meta_table = MetaTable(config=config)
-        self.__document_table = DocumentTable(config=config)
-        self.__device_table = DeviceTable(config=config)
+        # dimples databases
+        #   AccountDatabase: private key / meta / document / group / group history
+        #   MessageDatabase: group keys / cipher key / reliable messages
+        self.__adb = AccountDatabase(config=config)
+        self.__mdb = MessageDatabase(config=config)
+        # station extensions
+        self.__document_table = DocumentTable(config=config)  # for scan_documents
         self.__user_table = UserTable(config=config)
-        self.__group_table = GroupTable(config=config)
-        self.__history_table = GroupHistoryTable(config=config)
-        # Message
-        self.__grp_keys_table = GroupKeysTable(config=config)
-        self.__cipherkey_table = CipherKeyTable(config=config)
-        self.__message_table = ReliableMessageTable(config=config)
-        # # ANS
-        # self.__ans_table = AddressNameTable(info=info)
-        # Login info
+        self.__device_table = DeviceTable(config=config)
         self.__login_table = LoginTable(config=config)
         self.__active_table = ActiveTable(config=config)
-        # ISP
         self.__station_table = StationTable(config=config)
 
     def show_info(self):
-        # Entity
-        self.__private_table.show_info()
-        self.__meta_table.show_info()
+        self.__adb.show_info()
+        self.__mdb.show_info()
         self.__document_table.show_info()
-        self.__device_table.show_info()
         self.__user_table.show_info()
-        self.__group_table.show_info()
-        self.__history_table.show_info()
-        # Message
-        self.__grp_keys_table.show_info()
-        self.__cipherkey_table.show_info()
-        self.__message_table.show_info()
-        # # ANS
-        # self.__ans_table.show_info()
-        # Login info
+        self.__device_table.show_info()
         self.__login_table.show_info()
         self.__active_table.show_info()
-        # ISP
         self.__station_table.show_info()
 
     """
@@ -118,23 +94,19 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
 
     # Override
     async def save_private_key(self, key: PrivateKey, user: ID, key_type: str = 'M') -> bool:
-        user = user.without_terminal()  # Naked ID
-        return await self.__private_table.save_private_key(key=key, user=user, key_type=key_type)
+        return await self.__adb.save_private_key(key=key, user=user, key_type=key_type)
 
     # Override
     async def private_keys_for_decryption(self, user: ID) -> List[DecryptKey]:
-        user = user.without_terminal()  # Naked ID
-        return await self.__private_table.private_keys_for_decryption(user=user)
+        return await self.__adb.private_keys_for_decryption(user=user)
 
     # Override
     async def private_key_for_signature(self, user: ID) -> Optional[SignKey]:
-        user = user.without_terminal()  # Naked ID
-        return await self.__private_table.private_key_for_signature(user=user)
+        return await self.__adb.private_key_for_signature(user=user)
 
     # Override
     async def private_key_for_visa_signature(self, user: ID) -> Optional[SignKey]:
-        user = user.without_terminal()  # Naked ID
-        return await self.__private_table.private_key_for_visa_signature(user=user)
+        return await self.__adb.private_key_for_visa_signature(user=user)
 
     """
         Meta file for entities
@@ -144,25 +116,13 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
         redis key: 'mkm.meta.{ADDRESS}'
     """
 
-    async def _verify_meta(self, meta: Meta, identifier: ID) -> bool:
-        if MetaUtils.match_id(identifier=identifier, meta=meta):
-            return True
-        else:
-            self.error('meta not match: %s => %s', identifier, meta)
-            return False
-
     # Override
     async def save_meta(self, meta: Meta, identifier: ID) -> bool:
-        identifier = identifier.without_terminal()  # Naked ID
-        # check meta with ID
-        if await self._verify_meta(meta=meta, identifier=identifier):
-            # OK, save it
-            return await self.__meta_table.save_meta(meta=meta, identifier=identifier)
+        return await self.__adb.save_meta(meta=meta, identifier=identifier)
 
     # Override
     async def get_meta(self, identifier: ID) -> Optional[Meta]:
-        identifier = identifier.without_terminal()  # Naked ID
-        return await self.__meta_table.get_meta(identifier=identifier)
+        return await self.__adb.get_meta(identifier=identifier)
 
     """
         Document for Accounts
@@ -175,69 +135,13 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
         redis key: 'mkm.docs.keys'
     """
 
-    async def _verify_document(self, document: Document, identifier: ID) -> bool:
-        # if document.is_valid:
-        #     return True
-        meta = await self.get_meta(identifier=identifier)
-        assert meta is not None, f'meta not exists: {identifier}'
-        if document.verify(public_key=meta.public_key):
-            return True
-        else:
-            self.error('document error: %s => %s', identifier, document)
-            return False
-
     # Override
     async def save_document(self, document: Document, identifier: ID) -> bool:
-        # check did
-        did = DocumentUtils.get_document_id(document=document)
-        if did is None:
-            self.warning('set id for document: %s, %s', identifier, document)
-            document['did'] = str(identifier)
-        elif not did.is_same_as(other=identifier):
-            self.error('document id not match: %s, %s', identifier, document)
-            return False
-        # check terminal
-        terminal = identifier.terminal
-        if terminal is not None:
-            identifier = identifier.without_terminal()  # Naked ID
-            # check terminal in visa document
-            if isinstance(document, Visa):
-                # old = DocumentUtils.get_visa_terminal(document=document)
-                old = document.get('terminal')
-                if old is None or old == '':
-                    document['terminal'] = terminal
-        # elif isinstance(document, Bulletin):
-        #     # check founder of group in bulletin document
-        #     founder = document.founder
-        #     if founder is not None:
-        #         g_meta = await self.get_meta(identifier=identifier)
-        #         f_meta = await self.get_meta(identifier=founder)
-        #         if g_meta is None or f_meta is None or g_meta.public_key != f_meta.public_key:
-        #             raise ValueError(f'founder error: {founder}, group: {identifier}')
-        # check document with meta.key
-        if await self._verify_document(document=document, identifier=identifier):
-            # OK, save it
-            return await self.__document_table.save_document(document=document, identifier=identifier)
+        return await self.__adb.save_document(document=document, identifier=identifier)
 
     # Override
     async def get_documents(self, identifier: ID) -> List[Document]:
-        terminal = identifier.terminal
-        if terminal is not None:
-            identifier = identifier.without_terminal()  # Naked ID
-        # load
-        documents = await self.__document_table.get_documents(identifier=identifier)
-        if terminal is not None:
-            # filter for terminal
-            array = []
-            for doc in documents:
-                if isinstance(doc, Visa) and DocumentUtils.get_visa_terminal(document=doc) != terminal:
-                    self.info('skip document: %s "%s", %s', identifier, terminal, doc)
-                    continue
-                # terminal matched
-                array.append(doc)
-            self.info('filter %d/%d document(s) for user: %s/%s', len(array), len(documents), identifier, terminal)
-            documents = array
-        return documents
+        return await self.__adb.get_documents(identifier=identifier)
 
     async def scan_documents(self) -> List[Document]:
         return await self.__document_table.scan_documents()
@@ -313,7 +217,7 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
             return False
         if group is None:
             # check for personal message
-            return IDUtils.contains(sender, array)
+            return IDUtils.contains(sender, members=array)
         else:
             # check for group message
             return group in array
@@ -343,7 +247,7 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
             return False
         if group is None:
             # check for personal message
-            return IDUtils.contains(sender, array)
+            return IDUtils.contains(sender, members=array)
         else:
             # check for group message
             return group in array
@@ -369,20 +273,17 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
             i = 0
             for info in devices:
                 i += 1
+                platform = info.platform
                 if info.terminal != terminal:
-                    self.info('[%d/%d]  skip device: %s -> %s, %s.', i, cnt, user, terminal, info.platform)
+                    self.info('[%d/%d]  skip device: %s/%s -> %s, %s.', i, cnt, user, terminal, info.terminal, platform)
                     continue
                 else:
-                    self.info('[%d/%d] match device: %s -> %s, %s.', i, cnt, user, terminal, info.platform)
+                    self.info('[%d/%d] match device: %s/%s -> %s, %s.', i, cnt, user, terminal, info.terminal, platform)
                 # terminal matched
                 array.append(info)
-            self.info('filter %d/%d device(s) for user: %s/%s', len(array), len(devices), user, terminal)
+            self.info('filter %d/%d device(s) for user: %s/%s', len(array), cnt, user, terminal)
             devices = array
         return devices
-
-    # async def save_devices(self, devices: List[DeviceInfo], user: ID) -> bool:
-    #     user = user.without_terminal()  # Naked ID
-    #     return await self.__device_table.save_devices(devices=devices, user=user)
 
     async def add_device(self, device: DeviceInfo, user: ID) -> bool:
         if 'did' not in device:
@@ -402,27 +303,27 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
 
     # Override
     async def get_founder(self, group: ID) -> Optional[ID]:
-        return await self.__group_table.get_founder(group=group)
+        return await self.__adb.get_founder(group=group)
 
     # Override
     async def get_owner(self, group: ID) -> Optional[ID]:
-        return await self.__group_table.get_owner(group=group)
+        return await self.__adb.get_owner(group=group)
 
     # Override
     async def get_members(self, group: ID) -> List[ID]:
-        return await self.__group_table.get_members(group=group)
+        return await self.__adb.get_members(group=group)
 
     # Override
     async def save_members(self, members: List[ID], group: ID) -> bool:
-        return await self.__group_table.save_members(members=members, group=group)
+        return await self.__adb.save_members(members=members, group=group)
 
     # Override
     async def get_administrators(self, group: ID) -> List[ID]:
-        return await self.__group_table.get_administrators(group=group)
+        return await self.__adb.get_administrators(group=group)
 
     # Override
     async def save_administrators(self, administrators: List[ID], group: ID) -> bool:
-        return await self.__group_table.save_administrators(administrators=administrators, group=group)
+        return await self.__adb.save_administrators(administrators=administrators, group=group)
 
     #
     #   Group History DBI
@@ -430,23 +331,23 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
 
     # Override
     async def save_group_history(self, group: ID, content: GroupCommand, message: ReliableMessage) -> bool:
-        return await self.__history_table.save_group_history(group=group, content=content, message=message)
+        return await self.__adb.save_group_history(group=group, content=content, message=message)
 
     # Override
     async def get_group_histories(self, group: ID) -> List[Tuple[GroupCommand, ReliableMessage]]:
-        return await self.__history_table.get_group_histories(group=group)
+        return await self.__adb.get_group_histories(group=group)
 
     # Override
     async def get_reset_command_message(self, group: ID) -> Tuple[Optional[ResetCommand], Optional[ReliableMessage]]:
-        return await self.__history_table.get_reset_command_message(group=group)
+        return await self.__adb.get_reset_command_message(group=group)
 
     # Override
     async def clear_group_member_histories(self, group: ID) -> bool:
-        return await self.__history_table.clear_group_member_histories(group=group)
+        return await self.__adb.clear_group_member_histories(group=group)
 
     # Override
     async def clear_group_admin_histories(self, group: ID) -> bool:
-        return await self.__history_table.clear_group_admin_histories(group=group)
+        return await self.__adb.clear_group_admin_histories(group=group)
 
     """
         Reliable message for Receivers
@@ -458,15 +359,15 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
 
     # Override
     async def get_reliable_messages(self, receiver: ID, limit: int = 1024) -> List[ReliableMessage]:
-        return await self.__message_table.get_reliable_messages(receiver=receiver, limit=limit)
+        return await self.__mdb.get_reliable_messages(receiver=receiver, limit=limit)
 
     # Override
     async def cache_reliable_message(self, msg: ReliableMessage, receiver: ID) -> bool:
-        return await self.__message_table.cache_reliable_message(msg=msg, receiver=receiver)
+        return await self.__mdb.cache_reliable_message(msg=msg, receiver=receiver)
 
     # Override
     async def remove_reliable_message(self, msg: ReliableMessage, receiver: ID) -> bool:
-        return await self.__message_table.remove_reliable_message(msg=msg, receiver=receiver)
+        return await self.__mdb.remove_reliable_message(msg=msg, receiver=receiver)
 
     """
         Message Keys
@@ -477,19 +378,19 @@ class Database(Logging, AccountDBI, MessageDBI, SessionDBI):
 
     # Override
     async def get_cipher_key(self, sender: ID, receiver: ID, generate: bool = False) -> Optional[SymmetricKey]:
-        return await self.__cipherkey_table.get_cipher_key(sender=sender, receiver=receiver, generate=generate)
+        return await self.__mdb.get_cipher_key(sender=sender, receiver=receiver, generate=generate)
 
     # Override
     async def cache_cipher_key(self, key: SymmetricKey, sender: ID, receiver: ID):
-        return await self.__cipherkey_table.cache_cipher_key(key=key, sender=sender, receiver=receiver)
+        return await self.__mdb.cache_cipher_key(key=key, sender=sender, receiver=receiver)
 
     # Override
     async def get_group_keys(self, group: ID, sender: ID) -> Optional[StringPairing]:
-        return await self.__grp_keys_table.get_group_keys(group=group, sender=sender)
+        return await self.__mdb.get_group_keys(group=group, sender=sender)
 
     # Override
     async def save_group_keys(self, group: ID, sender: ID, keys: StringPairing) -> bool:
-        return await self.__grp_keys_table.save_group_keys(group=group, sender=sender, keys=keys)
+        return await self.__mdb.save_group_keys(group=group, sender=sender, keys=keys)
 
     # """
     #     Address Name Service

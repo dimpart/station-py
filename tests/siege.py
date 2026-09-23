@@ -193,7 +193,7 @@ class Sergeant(Logging):
         # 2. generate meta
         meta = Meta.generate(version=MetaType.MKM, private_key=pri_key, seed=seed)
         # 3. generate ID
-        identifier = ID.generate(meta=meta, network=EntityType.BOT)
+        identifier = meta.generate_id(network=EntityType.BOT)
         Log.info('NewID: %s\n', identifier)
         # 4. save private key & meta
         shared = GlobalVariable()

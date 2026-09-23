@@ -33,7 +33,7 @@
                                              -- Albert Moky @ Jan. 23, 2019
 """
 
-from startrek.skywalker import Runnable, Daemon
+from small.skywalker import Runnable, Daemon
 # from ipx import Notification, NotificationObserver, NotificationCenter as DefaultNotificationCenter
 
 from aiou.redis.client import BytesPairing
