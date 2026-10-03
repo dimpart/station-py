@@ -5,10 +5,9 @@
   "owner"  : "anyone@anywhere",
 
   "stations": [
-    {"host": "134.185.88.109",  "port": 9394, "desc": "US", "id": "gsp-s109@rSWMVqbwTz4radJFrpfcYzQo9XibhZC7w"},
+    {"host": "134.185.88.109",  "port": 9394, "desc": "SG", "id": "gsp-s109@rSWMVqbwTz4radJFrpfcYzQo9XibhZC7w"},
     {"host": "193.123.232.100", "port": 9394, "desc": "KR", "id": "gsp-s100@2Bsp9RYBeQeQxvmLaHJ6CZJRAterPYPDBD"},
-    {"host": "170.106.141.194", "port": 9394, "desc": "CA", "id": "gsp-s203@vm2wp9y9X2tCPfwH3mY5JKgM3beFKcRxB"},
-    {"host": "129.226.12.4",    "port": 9394, "desc": "HK", "id": "gsp-hk4@2AF3HkMockiHSXfABQuBGdGWbxaUVy7s83"}
+    {"host": "170.106.141.194", "port": 9394, "desc": "CA", "id": "gsp-s203@vm2wp9y9X2tCPfwH3mY5JKgM3beFKcRxB"}
   ]
 
 }

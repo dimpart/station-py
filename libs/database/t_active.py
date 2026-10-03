@@ -23,7 +23,6 @@
 # SOFTWARE.
 # ==============================================================================
 
-import threading
 from typing import Optional, Set, Tuple
 from typing import MutableMapping
 
@@ -43,7 +42,7 @@ class ActTask(DbTask[str, Set[ID]]):
 
     def __init__(self,
                  redis: ActiveCache,
-                 mutex_lock: threading.Lock, cache_pool: CachePool):
+                 mutex_lock, cache_pool: CachePool):
         super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool,
                          cache_expires=self.MEM_CACHE_EXPIRES,
                          cache_refresh=self.MEM_CACHE_REFRESH)
@@ -83,7 +82,7 @@ class ActiveTable(DataCache):
 
     async def clear_socket_addresses(self):
         """ clear before station start """
-        with self.lock:
+        async with self.lock:
             self.cache.erase(key='active_users')
             await self._redis.clear_socket_addresses()
 
@@ -95,7 +94,7 @@ class ActiveTable(DataCache):
 
     async def add_socket_address(self, user: ID, address: Tuple[str, int]) -> Set[Tuple[str, int]]:
         """ wrote by station only """
-        with self.lock:
+        async with self.lock:
             # 1. add into local cache
             sockets = self._socket_address.get(user)
             if sockets is None:
@@ -108,7 +107,7 @@ class ActiveTable(DataCache):
 
     async def remove_socket_address(self, user: ID, address: Tuple[str, int]) -> Set[Tuple[str, int]]:
         """ wrote by station only """
-        with self.lock:
+        async with self.lock:
             # 1. remove from local cache
             sockets = self._socket_address.get(user)
             if sockets is not None:

@@ -23,8 +23,9 @@
 # SOFTWARE.
 # ==============================================================================
 
-import threading
 from typing import Optional, List
+
+from small.lock import AsyncLock
 
 from aiou.mem import CachePool
 
@@ -45,7 +46,7 @@ class BaseTask(DbTask):
 
     def __init__(self, user: ID,
                  redis: UserCache, storage: UserStorage,
-                 mutex_lock: threading.Lock, cache_pool: CachePool):
+                 mutex_lock, cache_pool: CachePool):
         super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool)
         self._user = user
         self._redis = redis
@@ -178,7 +179,7 @@ class UserTable(UserDBI, ContactDBI):
         self._cache = man.get_pool(name='contacts')             # ID => List[ID]
         self._redis = UserCache(config=config)
         self._dos = UserStorage(config=config)
-        self._lock = threading.Lock()
+        self._lock = AsyncLock.create()
 
     def show_info(self):
         self._dos.show_info()

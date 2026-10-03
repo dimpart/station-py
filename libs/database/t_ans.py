@@ -23,7 +23,6 @@
 # SOFTWARE.
 # ==============================================================================
 
-import threading
 from typing import Optional, Union, Set
 
 from aiou.mem import CachePool
@@ -43,7 +42,7 @@ class AnsTask(DbTask):
 
     def __init__(self,
                  redis: AddressNameCache, storage: AddressNameStorage,
-                 mutex_lock: Union[threading.Lock, threading.RLock], cache_pool: CachePool):
+                 mutex_lock, cache_pool: CachePool):
         super().__init__(mutex_lock=mutex_lock, cache_pool=cache_pool)
         self._redis = redis
         self._dos = storage
@@ -70,7 +69,7 @@ class IdTask(AnsTask):
 
     def __init__(self, name: str,
                  redis: AddressNameCache, storage: AddressNameStorage,
-                 mutex_lock: Union[threading.Lock, threading.RLock], cache_pool: CachePool):
+                 mutex_lock, cache_pool: CachePool):
         super().__init__(redis=redis, storage=storage,
                          mutex_lock=mutex_lock, cache_pool=cache_pool)
         self._name = name
@@ -92,7 +91,7 @@ class NameTask(AnsTask):
 
     def __init__(self, identifier: ID,
                  redis: AddressNameCache, storage: AddressNameStorage,
-                 mutex_lock: Union[threading.Lock, threading.RLock], cache_pool: CachePool):
+                 mutex_lock, cache_pool: CachePool):
         super().__init__(redis=redis, storage=storage,
                          mutex_lock=mutex_lock, cache_pool=cache_pool)
         self._identifier = identifier
@@ -142,7 +141,7 @@ class AddressNameTable(DataCache):
 
     async def save_record(self, name: str, identifier: ID) -> bool:
         now = DateTime.current_timestamp()
-        with self.lock:
+        async with self.lock:
             #
             #  1. update memory cache
             #
@@ -179,7 +178,7 @@ class AddressNameTable(DataCache):
         #
         #   3. update memory cache
         #
-        with self.lock:
+        async with self.lock:
             if did is not None:
                 await self._redis.save_record(name=name, identifier=did)
             self.cache.update(key=name, value=did, life_span=AnsTask.MEM_CACHE_EXPIRES)
@@ -205,7 +204,7 @@ class AddressNameTable(DataCache):
         #
         #   3. update memory cache
         #
-        with self.lock:
+        async with self.lock:
             self.cache.update(key=identifier, value=names, life_span=AnsTask.MEM_CACHE_EXPIRES)
         return names
 
