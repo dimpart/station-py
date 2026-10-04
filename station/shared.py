@@ -163,6 +163,10 @@ class GlobalVariable:
         #
         monitor = Monitor()
         monitor.emitter = emitter
+        masters = config.get_string(section='monitor', option='masters')
+        if masters is not None:
+            # comma separated IDs; empty = no online/offline notifications
+            monitor.masters = ID.convert(array=[m for m in masters.replace(' ', '').split(',') if m])
 
     async def login(self, current_user: ID):
         facebook = self.facebook
