@@ -76,6 +76,13 @@ class Monitor(Runner, Logging):
 
     INTERVAL = 60  # seconds
 
+    # default receivers of user online/offline notifications; override with
+    # `masters = ID1, ID2` in config.ini [monitor] (an empty value disables them)
+    DEFAULT_MASTERS = [
+        '0x952718A18C6b21abb593D84203282fe1c21773D6',
+        '0x9527cFD9b6a0736d8417354088A4fC6e345E31F8',
+    ]
+
     def __init__(self):
         super().__init__(interval=Runner.INTERVAL_SLOW)
         self.__events = []
@@ -88,6 +95,8 @@ class Monitor(Runner, Logging):
         self.__bot: Optional[ID] = None
         # emitter to send message
         self.__emitter: Optional[ServerEmitter] = None
+        # who receives online/offline notifications (config.ini [monitor] masters)
+        self.__masters: List[ID] = ID.convert(array=self.DEFAULT_MASTERS)
         # auto start
         self.start()
 
@@ -98,6 +107,14 @@ class Monitor(Runner, Logging):
             receiver = AnsCommandProcessor.ans_id(name='monitor')
             self.__bot = receiver
         return receiver
+
+    @property
+    def masters(self) -> List[ID]:
+        return self.__masters
+
+    @masters.setter
+    def masters(self, array: List[ID]):
+        self.__masters = array
 
     @property
     def emitter(self) -> ServerEmitter:
@@ -328,11 +345,7 @@ async def _notify_masters(sender: ID, online: bool, remote_address: Tuple[str, i
         title = f'Activity: Offline ({when})'
         text = f'{srv}: "{name}" is offline, socket {remote_address}'
     avatar = await _get_avatar(identifier=sender)
-    # TODO: get masters from config.ini ?
-    masters = ID.convert(array=[
-        '0x952718A18C6b21abb593D84203282fe1c21773D6',
-        '0x9527cFD9b6a0736d8417354088A4fC6e345E31F8',
-    ])
+    masters = Monitor().masters
     Log.warning('notify masters %s: %s', masters, text)
     if len(masters) == 0:
         return False
