@@ -34,7 +34,7 @@ import random
 import threading
 import weakref
 from socketserver import StreamRequestHandler
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Set
 
 from dimples import ID
 from dimples import ReliableMessage
@@ -43,6 +43,29 @@ from dimples import BaseContentProcessor
 from dimples.server import SessionCenter, ServerSession
 
 from ...utils import Singleton, Logging
+
+
+# The text commands below list every connected user, with the IP address and port
+# it connects from, so the station answers them only for its operators.
+# Override in config.ini with `[admin] ids = ID1, ID2`; an empty value disables them.
+DEFAULT_ADMINS = [
+    '0x952718A18C6b21abb593D84203282fe1c21773D6',
+    '0x9527cFD9b6a0736d8417354088A4fC6e345E31F8',
+]
+ADMIN_COMMANDS = ('all users', 'active users', 'request handlers')
+
+_admins: Set[str] = set(DEFAULT_ADMINS)
+
+
+def set_admins(array: List[str]) -> Set[str]:
+    """ Replace the IDs allowed to run the text commands (device terminals ignored) """
+    _admins.clear()
+    _admins.update(str(item).strip().split('/', 1)[0] for item in array if str(item).strip())
+    return set(_admins)
+
+
+def is_admin(identifier: ID) -> bool:
+    return str(identifier).split('/', 1)[0] in _admins
 
 
 class TextContentProcessor(BaseContentProcessor, Logging):
@@ -61,6 +84,9 @@ class TextContentProcessor(BaseContentProcessor, Logging):
             return []
         else:
             text = text.lower()
+        if text in ADMIN_COMMANDS and not is_admin(identifier=r_msg.sender):
+            self.warning(msg='refused text command "%s" from %s' % (text, r_msg.sender))
+            return []
         # text commands
         if text == 'all users':
             return _all_users()

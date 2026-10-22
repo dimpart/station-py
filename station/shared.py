@@ -50,6 +50,7 @@ from libs.server import PushCenter, DefaultPushService
 from libs.server import MessageDeliver, Roamer
 from libs.server import Dispatcher, BlockFilter, MuteFilter
 from libs.server import ServerEmitter, Monitor
+from libs.server.cpu.text import set_admins
 
 
 @Singleton
@@ -163,6 +164,13 @@ class GlobalVariable:
         #
         monitor = Monitor()
         monitor.emitter = emitter
+        #
+        #  Step 7: who may run the station text commands ("active users", ...)
+        #
+        admins = config.get_string(section='admin', option='ids')
+        if admins is not None:
+            # comma separated IDs; empty = nobody
+            set_admins(array=[a for a in admins.replace(' ', '').split(',') if a])
 
     async def login(self, current_user: ID):
         facebook = self.facebook
