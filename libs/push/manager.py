@@ -111,6 +111,19 @@ class PushNotificationClient(Runner, Logging):
         thr.start()
 
     # Override
+    async def handle(self):
+        while self.running:
+            try:
+                busy = await self.process()
+            except Exception as error:
+                self.error('push error: %s', error)
+                continue
+            if not busy:
+                # nothing to do now,
+                # have a rest ^_^
+                await self._idle()
+
+    # Override
     async def process(self) -> bool:
         task = self.__next_task()
         if task is None:

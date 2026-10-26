@@ -40,6 +40,7 @@ from typing import Optional
 from dimples import DateTime
 from dimples import ID
 from dimples.server import ServerSession as SuperSession
+from dimples.server import PushCenter
 
 from ..utils import Runner, Log
 from ..database import Database
@@ -106,6 +107,11 @@ async def session_change_id(session: ServerSession, new_id: ID, old_id: Optional
     if new_id is not None:  # and session.active:
         # store socket address for new user
         Log.info('store socket address for new user: %s, %s', new_id, remote)
+        # clear badges for this device, and also the fallback counter
+        # for devices without terminal (their badge uses the main ID)
+        center = PushCenter()
+        center.reset_badge(identifier=new_id)
+        center.reset_badge(identifier=new_id.without_terminal())
         return await db.add_socket_address(user=new_id, address=remote)
 
 
@@ -120,6 +126,11 @@ async def session_change_active(session: ServerSession, active: bool):
     if active:
         # store socket address for this user
         Log.info('store socket address for this user: %s, %s', identifier, remote)
+        # clear badges for this device, and also the fallback counter
+        # for devices without terminal (their badge uses the main ID)
+        center = PushCenter()
+        center.reset_badge(identifier=identifier)
+        center.reset_badge(identifier=identifier.without_terminal())
         return await db.add_socket_address(user=identifier, address=remote)
     else:
         # remove socket address for this user
